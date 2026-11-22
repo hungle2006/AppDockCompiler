@@ -1,0 +1,10 @@
+{
+  "name": "appdock-integrated-firmware",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "dependencies": {
+    "@neondatabase/serverless": "1.0.2",
+    "fflate": "0.8.2"
+  }
+}

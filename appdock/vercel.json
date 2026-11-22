@@ -1,0 +1,124 @@
+{
+  "version": 2,
+  "buildCommand": "echo AppDock firmware integrated",
+  "outputDirectory": "public",
+  "functions": {
+    "api/*.js": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/firmware",
+      "destination": "/firmware.html"
+    },
+    {
+      "source": "/api/hub",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/api/hub"
+    },
+    {
+      "source": "/api/google",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/api/google"
+    },
+    {
+      "source": "/api/file",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/api/file"
+    },
+    {
+      "source": "/api/cloud-upload",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/api/cloud-upload"
+    },
+    {
+      "source": "/api/notifications",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/api/notifications"
+    },
+    {
+      "source": "/api/push",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/api/push"
+    },
+    {
+      "source": "/api/upload",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/api/upload"
+    },
+    {
+      "source": "/assets/:path*",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/assets/:path*"
+    },
+    {
+      "source": "/appdock-extras.js",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/appdock-extras.js"
+    },
+    {
+      "source": "/appdock-extras.css",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/appdock-extras.css"
+    },
+    {
+      "source": "/push-client.js",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/push-client.js"
+    },
+    {
+      "source": "/runner.html",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/runner.html"
+    },
+    {
+      "source": "/runner.js",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/runner.js"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/sw.js"
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/manifest.webmanifest"
+    },
+    {
+      "source": "/icon-192.png",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/icon-192.png"
+    },
+    {
+      "source": "/icon-512.png",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/icon-512.png"
+    },
+    {
+      "source": "/icon-maskable.png",
+      "destination": "https://anh-app-1w8vycmqy-hope-1091.vercel.app/icon-maskable.png"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    }
+  ]
+}
