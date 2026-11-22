@@ -1,0 +1,81 @@
+name: AppDockCompiler
+run-name: "AppDockCompiler · ${{ inputs.request_id || 'smoke' }}"
+on:
+  workflow_dispatch:
+    inputs:
+      request_id: {required: true, type: string}
+      project_id: {required: true, type: string}
+      board: {required: true, type: string}
+      config_b64: {required: true, type: string}
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/compile.yml'
+      - 'scripts/prepare.py'
+      - 'projects/led-blink/**'
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.event.inputs.request_id || github.sha }}
+  cancel-in-progress: false
+jobs:
+  compile:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout trusted repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+      - name: Validate configuration and generate header
+        env:
+          PROJECT_ID: ${{ inputs.project_id || 'led-blink' }}
+          BOARD_ID: ${{ inputs.board || 'uno' }}
+          CONFIG_B64: ${{ inputs.config_b64 || 'e30=' }}
+        shell: bash
+        run: |
+          python3 scripts/prepare.py --project "$PROJECT_ID" --board "$BOARD_ID" --config-b64 "$CONFIG_B64"
+      - name: Cache board cores
+        uses: actions/cache@v4
+        with:
+          path: ~/.arduino15
+          key: appdock-core-v1-${{ runner.os }}-${{ inputs.board || 'uno' }}
+      - name: Set compiler environment
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json
+          conf=json.load(open('build/selection.json'))
+          for k in ('fqbn','core','additional_url'):
+              print(k.upper()+'='+str(conf.get(k,'')))
+          PY
+      - name: Compile firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$ADDITIONAL_URL" ]]; then
+            arduino-cli core update-index --additional-urls "$ADDITIONAL_URL"
+            arduino-cli core install "$CORE" --additional-urls "$ADDITIONAL_URL"
+          else
+            arduino-cli core update-index
+            arduino-cli core install arduino:avr
+          fi
+          mkdir -p build/output
+          arduino-cli compile --fqbn "$FQBN" --output-dir build/output build/AppDockSketch
+      - name: Package and publish firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/artifact
+          find build/output -maxdepth 1 -type f \( -name '*.hex' -o -name '*.bin' \) ! -name '*with_bootloader*' -exec cp '{}' build/artifact/ \;
+          cp build/selection.json build/artifact/build-info.json
+          test "$(find build/artifact -type f | wc -l)" -gt 1
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appdock-firmware-${{ inputs.request_id || 'smoke' }}
+          path: build/artifact/
+          retention-days: 7
+          if-no-files-found: error

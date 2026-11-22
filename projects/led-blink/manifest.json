@@ -1,0 +1,44 @@
+{
+  "id": "led-blink",
+  "title": "Đèn LED điều khiển",
+  "description": "Chỉnh chân GPIO, tên thiết bị và tốc độ nhấp nháy mà không sửa mã nguồn.",
+  "version": "1.0.0",
+  "published": true,
+  "boards": [
+    "uno",
+    "nano",
+    "nano_old",
+    "rf_nano",
+    "rf_nano_old",
+    "mega",
+    "leonardo",
+    "esp32",
+    "esp8266"
+  ],
+  "fields": [
+    {
+      "key": "LED_PIN",
+      "label": "Chân LED",
+      "type": "pin",
+      "min": 2,
+      "max": 40,
+      "default": 13,
+      "help": "Chân digital trên board"
+    },
+    {
+      "key": "DEVICE_NAME",
+      "label": "Tên thiết bị",
+      "type": "string",
+      "maxLength": 32,
+      "default": "AppDock LED"
+    },
+    {
+      "key": "BLINK_INTERVAL",
+      "label": "Chu kỳ nhấp nháy (ms)",
+      "type": "integer",
+      "min": 100,
+      "max": 10000,
+      "default": 500
+    }
+  ]
+}
