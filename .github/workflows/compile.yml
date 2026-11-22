@@ -3,16 +3,36 @@ run-name: "AppDockCompiler · ${{ inputs.request_id || 'smoke' }}"
 on:
   workflow_dispatch:
     inputs:
-      request_id: {required: true, type: string}
-      project_id: {required: true, type: string}
-      board: {required: true, type: string}
-      config_b64: {required: true, type: string}
+      request_id:
+        description: Unique build request UUID
+        type: string
+        required: true
+      project_id:
+        description: Trusted, admin-published project
+        type: string
+        required: true
+      board:
+        description: Target board key
+        type: string
+        required: true
+      config_b64:
+        description: Base64 JSON map of admin-approved variables
+        type: string
+        required: true
+      allow_draft:
+        type: boolean
+        required: false
+        default: false
+      revision:
+        type: string
+        required: false
   push:
     branches: [main]
     paths:
       - '.github/workflows/compile.yml'
       - 'scripts/prepare.py'
-      - 'projects/led-blink/**'
+      - 'boards/**'
+      - 'projects/**'
 permissions:
   contents: read
 concurrency:
@@ -21,61 +41,76 @@ concurrency:
 jobs:
   compile:
     runs-on: ubuntu-22.04
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
-      - name: Checkout trusted repo
+      - name: Checkout trusted repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+          ref: ${{ inputs.revision || github.sha }}
       - name: Install Arduino CLI
         uses: arduino/setup-arduino-cli@v2
-      - name: Validate configuration and generate header
+      - name: Validate config; generate C++ header
         env:
           PROJECT_ID: ${{ inputs.project_id || 'led-blink' }}
           BOARD_ID: ${{ inputs.board || 'uno' }}
           CONFIG_B64: ${{ inputs.config_b64 || 'e30=' }}
+          ALLOW_DRAFT: ${{ inputs.allow_draft || 'false' }}
         shell: bash
         run: |
-          python3 scripts/prepare.py --project "$PROJECT_ID" --board "$BOARD_ID" --config-b64 "$CONFIG_B64"
+          if [[ "${ALLOW_DRAFT:-false}" == "true" ]]; then
+            if [[ "${{ github.ref_name }}" != "appdock-preview" ]]; then echo 'Draft builds only on isolated preview branch'; exit 1; fi
+            python3 scripts/prepare.py --project "$PROJECT_ID" --board "$BOARD_ID" --config-b64 "$CONFIG_B64" --allow-draft
+          else
+            python3 scripts/prepare.py --project "$PROJECT_ID" --board "$BOARD_ID" --config-b64 "$CONFIG_B64"
+          fi
       - name: Cache board cores
         uses: actions/cache@v4
         with:
           path: ~/.arduino15
-          key: appdock-core-v1-${{ runner.os }}-${{ inputs.board || 'uno' }}
-      - name: Set compiler environment
-        shell: bash
-        run: |
-          python3 - <<'PY' >> "$GITHUB_ENV"
-          import json
-          conf=json.load(open('build/selection.json'))
-          for k in ('fqbn','core','additional_url'):
-              print(k.upper()+'='+str(conf.get(k,'')))
-          PY
-      - name: Compile firmware
+          key: compiler-v1-${{ runner.os }}-${{ inputs.board || 'uno' }}
+      - name: Select board core
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -n "$ADDITIONAL_URL" ]]; then
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json
+          x=json.load(open('build/selection.json'))
+          for key,value in x.items():
+              if key in ('fqbn','core','additional_url'):
+                  print(key.upper() + '=' + str(value or ''))
+          PY
+      - name: Install board core and compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${ADDITIONAL_URL:-}" ]]; then
             arduino-cli core update-index --additional-urls "$ADDITIONAL_URL"
             arduino-cli core install "$CORE" --additional-urls "$ADDITIONAL_URL"
           else
             arduino-cli core update-index
-            arduino-cli core install arduino:avr
+            arduino-cli core install "$CORE"
           fi
           mkdir -p build/output
-          arduino-cli compile --fqbn "$FQBN" --output-dir build/output build/AppDockSketch
-      - name: Package and publish firmware
+          python3 - <<'PY'
+          import json, subprocess
+          for lib in json.load(open('build/selection.json')).get('libraries', []):
+              print('Installing library:', lib)
+              subprocess.run(['arduino-cli','lib','install',lib],check=True,timeout=180)
+          PY
+          arduino-cli compile --fqbn "$FQBN" --output-dir build/output --warnings default build/AppDockSketch
+      - name: Package firmware
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p build/artifact
-          find build/output -maxdepth 1 -type f \( -name '*.hex' -o -name '*.bin' \) ! -name '*with_bootloader*' -exec cp '{}' build/artifact/ \;
+          find build/output -maxdepth 1 -type f \( -name '*.hex' -o -name '*.bin' -o -name '*.json' \) ! -name '*with_bootloader*' -exec cp '{}' build/artifact/ \;
+          test "$(find build/artifact -type f | wc -l)" -gt 0
           cp build/selection.json build/artifact/build-info.json
-          test "$(find build/artifact -type f | wc -l)" -gt 1
-      - name: Upload artifact
+      - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
           name: appdock-firmware-${{ inputs.request_id || 'smoke' }}
-          path: build/artifact/
+          path: build/artifact
           retention-days: 7
           if-no-files-found: error

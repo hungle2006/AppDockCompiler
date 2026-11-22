@@ -1,0 +1,77 @@
+/* AppDock IDE v4 — professional code workspace, 8px spacing system */
+#admin-area .admin-layout{grid-template-columns:minmax(0,1fr) 250px;gap:20px}
+#admin-area .editorpanel{min-width:0}
+#admin-area .editorpanel .admin-form{min-width:0}
+.board-search{display:flex;gap:12px;align-items:center;margin:8px 0 12px}
+.board-search input{width:100%;height:42px;min-width:0;border:1px solid #d7e1f0;background:#f8faff;color:var(--ink,#16243b);padding:0 14px;border-radius:11px;outline:none;font-size:12.5px}
+.board-search input:focus{border-color:#6287e6;box-shadow:0 0 0 3px #6287e620}
+.board-search span{flex:0 0 auto;font-size:11px;font-weight:700;color:#45669f;background:#eaf1fd;border:1px solid #dce7fc;border-radius:8px;padding:8px}
+#admin-boards.boardchoices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:12px;padding:1px 0 8px;max-height:310px;overflow:auto;scrollbar-width:thin}
+#admin-boards .board-group{display:grid;align-content:start;gap:6px;padding:10px 10px 12px;border:1px solid #e1e8f3;border-radius:12px;background:#f9fbff;min-width:0}
+#admin-boards .board-group-title{font-size:10px;font-weight:850;letter-spacing:.045em;text-transform:uppercase;color:#7183a0;padding:3px 4px 7px}
+#admin-boards .board-choice{display:flex;align-items:flex-start;gap:8px;min-height:35px;padding:8px;border-radius:8px;border:1px solid transparent;background:#fff;color:#40536d;font-size:11px;line-height:1.45;cursor:pointer;overflow-wrap:anywhere;min-width:0}
+#admin-boards .board-choice input{margin-top:2px;flex:0 0 auto;width:15px;height:15px;accent-color:#315fd0}
+#admin-boards .board-choice:has(input:checked){background:#e7f0ff;border-color:#afc6f6;color:#244cab;font-weight:700}
+#admin-boards .board-group[hidden],#admin-boards .board-choice[hidden]{display:none!important}
+.ide-workspace{display:grid;gap:0;margin:17px 0 22px;min-width:0;border:1px solid #223656;border-radius:14px;background:#101c2f;overflow:hidden;box-shadow:0 9px 28px #142a4b12}
+.ide-workspace .button{border-radius:9px;white-space:nowrap;padding:9px 12px;font-weight:750;min-height:36px;font-size:11px;gap:6px}
+.ide-workspace .button.primary{background:#3f72ed;border-color:#3f72ed;color:#fff}
+.ide-workspace .button.dark{background:#335bb2;border-color:#335bb2;color:#fff}
+.ide-workspace .button.light{background:#233752;color:#dce7fe;border:1px solid #3e5270}
+.ide-workspace button:focus-visible,.ide-workspace input:focus-visible,.ide-workspace select:focus-visible{outline:2px solid #85a7fa;outline-offset:2px}
+.ide-toolbar{display:flex;align-items:flex-end;gap:16px;padding:14px 16px;background:#15243a;border-bottom:1px solid #2a3c58}
+.ide-board-picker{min-width:170px;flex:1;max-width:355px;display:grid;gap:5px}
+.ide-board-picker label,.ide-librarybar label{font-size:9px;color:#9cafd2;letter-spacing:1.15px;font-weight:850}
+.ide-board-picker select{width:100%;min-width:0;height:39px;padding:0 12px;border-radius:8px;border:1px solid #3d5377;background:#213451;color:#e9f1ff;font-size:12px;outline:0}
+.ide-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end;margin-left:auto}
+.ide-actions .ui-icon{width:15px;height:15px}
+.ide-librarybar{display:grid;grid-template-columns:110px minmax(0,1fr);align-items:center;gap:10px 12px;padding:11px 16px;background:#182a43;border-bottom:1px solid #2b3d58}
+.ide-librarybar label{line-height:1.4}
+.ide-librarybar input{width:100%;height:38px;padding:9px 11px;border:1px solid #394e71;border-radius:8px;background:#11213a;color:#dfeafb;font-size:12px;outline:none}
+.ide-librarybar input::placeholder{color:#899dbd}
+.ide-librarybar small{grid-column:2;font-size:10px;color:#8fa6c7;line-height:1.5}
+.ide-tabs{display:flex;gap:0;align-items:stretch;background:#101e33;border-bottom:1px solid #293d5b;min-height:42px}
+.ide-tab{border:0;border-right:1px solid #2a3e59;border-radius:0;padding:11px 16px;min-height:42px;display:inline-flex;align-items:center;justify-content:center;color:#8da5c6;font-size:11px;background:transparent;white-space:nowrap}
+.ide-tab.active{background:#182b45;color:#d5e7ff;border-bottom:2px solid #65a0ff;font-weight:800}
+.ide-tab span{font-size:9px;color:#7793b8;margin-left:5px}
+.ide-tool-buttons{margin-left:auto;display:flex;align-items:center;gap:3px;padding:4px 7px}
+.ide-tool-buttons button,.ide-output-head button{background:transparent;color:#a7c1e0;font-size:11px;border:0;padding:6px 8px;min-height:30px;border-radius:6px}
+.ide-tool-buttons button:hover,.ide-output-head button:hover{background:#284362;color:#fff}
+.ide-editor-holder{min-height:345px;max-height:600px;overflow:hidden}
+.ide-code-area{display:flex;min-width:0;min-height:345px;height:min(49vh,520px);background:#0e1b30;color:#cee1fb}
+#ide-lines{width:49px;min-width:49px;background:#14243b;border-right:1px solid #243958;color:#6982a6;white-space:pre;text-align:right;font:12px/22px 'Cascadia Code',Consolas,Menlo,monospace;padding:17px 10px 20px 4px;overflow:hidden;margin:0;user-select:none}
+.ide-code-stack{position:relative;flex:1;min-width:0;overflow:hidden}
+.ide-code-stack pre,.ide-code-stack textarea{position:absolute;inset:0;width:100%;height:100%;margin:0;box-sizing:border-box;font:12.5px/22px 'Cascadia Code',Consolas,Menlo,monospace;white-space:pre;tab-size:2;letter-spacing:0;background:transparent;border:0;border-radius:0;padding:17px 14px 20px 18px;overflow:auto;overflow-wrap:normal}
+#ide-highlighting{z-index:1;pointer-events:none;white-space:pre;overflow:hidden;color:#c7d8f2}
+#admin-code.source{z-index:2;border:0!important;outline:none!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;resize:none;min-height:0!important;color:transparent!important;-webkit-text-fill-color:transparent!important;caret-color:#f6db9c!important;overflow:auto!important}
+#admin-code.source::selection{background:#4475bb70;-webkit-text-fill-color:transparent}
+#ide-highlighting .ide-keyword{color:#bb9df5;font-weight:650}
+#ide-highlighting .ide-builtin{color:#6ac9f8}
+#ide-highlighting .ide-comment{color:#7599a8;font-style:italic}
+#ide-highlighting .ide-directive{color:#eec37b}
+#ide-highlighting .ide-number{color:#f7b784}
+#ide-highlighting .ide-string{color:#a9d792}
+.ide-header-preview{margin:0;padding:20px;background:#0e1b30;min-height:200px;color:#a9d792;white-space:pre;overflow:auto;font:12px/22px 'Cascadia Code',Consolas,Menlo,monospace}
+.ide-statusrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;color:#8da7ca;background:#182a42;border-top:1px solid #2a3e5b;font-size:10px}
+.ide-output{background:#0d1728;border-top:1px solid #2a3a56;color:#b9c9e2}
+.ide-output-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 14px;border-bottom:1px solid #213451;font-size:10px;letter-spacing:.08em;color:#a9c8ff}
+#ide-console{margin:0;white-space:pre-wrap;overflow:auto;min-height:80px;max-height:185px;padding:12px 14px;font:11px/18px 'Cascadia Code',Consolas,monospace;color:#b8d7c5}
+.ide-build-line{display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid #213451;color:#9fb5d5;font-size:10.5px}
+.ide-progress{flex:1;max-width:200px;height:5px;border-radius:10px;background:#263850;overflow:hidden}
+.ide-progress span{display:block;height:100%;width:0;background:#5d98ee;transition:width .25s ease}
+.ide-serial-panel{background:#172944;border-top:1px solid #304563;min-width:0}
+.ide-serial-head{display:flex;align-items:center;gap:8px;padding:12px 14px;flex-wrap:wrap}
+.ide-serial-head b{margin-right:auto;color:#c0d4f5;font-size:11px;letter-spacing:.06em}
+.ide-serial-head select,.ide-serial-send select{height:34px;color:#c9dbf5;background:#1b3455;border:1px solid #3a5579;border-radius:8px;padding:6px 8px;font-size:11px}
+.ide-serial-panel .button{min-height:34px;padding:7px 9px}
+#ide-serial-console{margin:0;padding:12px 14px;min-height:72px;max-height:160px;overflow:auto;color:#a2d9be;background:#101c30;white-space:pre-wrap;font:11px/17px 'Cascadia Code',Consolas,monospace}
+.ide-serial-send{display:flex;gap:7px;padding:10px 13px;align-items:center}
+.ide-serial-send input{min-width:0;flex:1;height:37px;background:#203552;border:1px solid #3f5577;border-radius:8px;color:#edf3ff;padding:8px 11px;font-size:12px}
+.ide-serial-send input::placeholder{color:#94a9c6}
+@media(max-width:1440px){#admin-area .admin-layout{grid-template-columns:minmax(0,1fr)}#admin-boards.boardchoices{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1100px){#admin-boards.boardchoices{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.ide-toolbar{align-items:stretch;flex-direction:column;gap:12px}.ide-board-picker{max-width:none}.ide-actions{justify-content:flex-start;margin-left:0}.ide-librarybar{grid-template-columns:1fr;gap:6px}.ide-librarybar small{grid-column:1}.ide-tabs{flex-wrap:wrap}.ide-tab{padding:10px 11px;font-size:10px}.ide-tool-buttons{padding:4px;margin-left:0}.ide-editor-holder,.ide-code-area{min-height:310px;height:44vh}.ide-code-stack pre,.ide-code-stack textarea{font-size:12px;line-height:21px;padding:12px 10px}.ide-code-area #ide-lines{font-size:11px;line-height:21px;padding:12px 7px;width:38px;min-width:38px}.ide-serial-head b{flex-basis:100%}#admin-boards.boardchoices{grid-template-columns:1fr 1fr;gap:8px}.ide-statusrow{font-size:9px;flex-wrap:wrap}}
+@media(max-width:400px){#admin-boards.boardchoices{grid-template-columns:1fr}.ide-actions .button{flex:1}.ide-serial-head .button{flex:1}.ide-serial-send{flex-wrap:wrap}.ide-serial-send input{flex:1 0 100%}}
+@media(prefers-reduced-motion:reduce){.ide-workspace *{transition:none!important}}
+/* Expose admin navigation on mobile (previous stylesheet accidentally hid it). */
+@media(max-width:670px){.mobiletabs{display:flex!important;gap:7px;margin:0 0 13px;padding:0 0 10px;border-bottom:1px solid #d9e4f5}.mobiletabs button{flex:1;min-width:0;min-height:40px;border-radius:10px;background:#fff;border:1px solid #dce5f3;color:#425777;font-size:11px;font-weight:750}.mobiletabs button.active{background:#eaf1ff;border-color:#a8bfee;color:#2c5ab9}.mobiletabs button[hidden]{display:none!important}}

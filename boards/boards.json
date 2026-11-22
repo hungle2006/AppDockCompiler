@@ -1,0 +1,262 @@
+[
+  {
+    "id": "uno",
+    "label": "Arduino Uno R3",
+    "family": "Arduino AVR",
+    "fqbn": "arduino:avr:uno",
+    "core": "arduino:avr",
+    "additional_url": null,
+    "pin_max": 13,
+    "upload": "avr"
+  },
+  {
+    "id": "nano",
+    "label": "Arduino Nano (mới)",
+    "family": "Arduino AVR",
+    "fqbn": "arduino:avr:nano:cpu=atmega328",
+    "core": "arduino:avr",
+    "additional_url": null,
+    "pin_max": 13,
+    "upload": "avr"
+  },
+  {
+    "id": "nano_old",
+    "label": "Arduino Nano (bootloader cũ)",
+    "family": "Arduino AVR",
+    "fqbn": "arduino:avr:nano:cpu=atmega328old",
+    "core": "arduino:avr",
+    "additional_url": null,
+    "pin_max": 13,
+    "upload": "avr"
+  },
+  {
+    "id": "rf_nano",
+    "label": "RF-Nano (mới)",
+    "family": "Arduino AVR",
+    "fqbn": "arduino:avr:nano:cpu=atmega328",
+    "core": "arduino:avr",
+    "additional_url": null,
+    "pin_max": 13,
+    "upload": "avr"
+  },
+  {
+    "id": "rf_nano_old",
+    "label": "RF-Nano (bootloader cũ)",
+    "family": "Arduino AVR",
+    "fqbn": "arduino:avr:nano:cpu=atmega328old",
+    "core": "arduino:avr",
+    "additional_url": null,
+    "pin_max": 13,
+    "upload": "avr"
+  },
+  {
+    "id": "mega",
+    "label": "Arduino Mega 2560",
+    "family": "Arduino AVR",
+    "fqbn": "arduino:avr:mega:cpu=atmega2560",
+    "core": "arduino:avr",
+    "additional_url": null,
+    "pin_max": 53,
+    "upload": "download"
+  },
+  {
+    "id": "leonardo",
+    "label": "Arduino Leonardo",
+    "family": "Arduino AVR",
+    "fqbn": "arduino:avr:leonardo",
+    "core": "arduino:avr",
+    "additional_url": null,
+    "pin_max": 19,
+    "upload": "download"
+  },
+  {
+    "id": "micro",
+    "label": "Arduino Micro",
+    "family": "Arduino AVR",
+    "fqbn": "arduino:avr:micro",
+    "core": "arduino:avr",
+    "additional_url": null,
+    "pin_max": 19,
+    "upload": "download"
+  },
+  {
+    "id": "pro_mini",
+    "label": "Arduino Pro Mini 5V / 16 MHz",
+    "family": "Arduino AVR",
+    "fqbn": "arduino:avr:pro:cpu=16MHzatmega328",
+    "core": "arduino:avr",
+    "additional_url": null,
+    "pin_max": 13,
+    "upload": "download"
+  },
+  {
+    "id": "nano_every",
+    "label": "Arduino Nano Every",
+    "family": "Arduino megaAVR",
+    "fqbn": "arduino:megaavr:nona4809",
+    "core": "arduino:megaavr",
+    "additional_url": null,
+    "pin_max": 21,
+    "upload": "download"
+  },
+  {
+    "id": "uno_wifi_rev2",
+    "label": "Arduino Uno WiFi Rev2",
+    "family": "Arduino megaAVR",
+    "fqbn": "arduino:megaavr:uno2018",
+    "core": "arduino:megaavr",
+    "additional_url": null,
+    "pin_max": 19,
+    "upload": "download"
+  },
+  {
+    "id": "uno_r4_minima",
+    "label": "Arduino UNO R4 Minima",
+    "family": "Arduino Renesas",
+    "fqbn": "arduino:renesas_uno:minima",
+    "core": "arduino:renesas_uno",
+    "additional_url": null,
+    "pin_max": 21,
+    "upload": "download"
+  },
+  {
+    "id": "uno_r4_wifi",
+    "label": "Arduino UNO R4 WiFi",
+    "family": "Arduino Renesas",
+    "fqbn": "arduino:renesas_uno:unor4wifi",
+    "core": "arduino:renesas_uno",
+    "additional_url": null,
+    "pin_max": 21,
+    "upload": "download"
+  },
+  {
+    "id": "nano_33_iot",
+    "label": "Arduino Nano 33 IoT",
+    "family": "Arduino SAMD",
+    "fqbn": "arduino:samd:nano_33_iot",
+    "core": "arduino:samd",
+    "additional_url": null,
+    "pin_max": 21,
+    "upload": "download"
+  },
+  {
+    "id": "mkr_wifi_1010",
+    "label": "Arduino MKR WiFi 1010",
+    "family": "Arduino SAMD",
+    "fqbn": "arduino:samd:mkrwifi1010",
+    "core": "arduino:samd",
+    "additional_url": null,
+    "pin_max": 21,
+    "upload": "download"
+  },
+  {
+    "id": "nano_33_ble",
+    "label": "Arduino Nano 33 BLE",
+    "family": "Arduino Mbed",
+    "fqbn": "arduino:mbed_nano:nano33ble",
+    "core": "arduino:mbed_nano",
+    "additional_url": null,
+    "pin_max": 31,
+    "upload": "download"
+  },
+  {
+    "id": "nano_rp2040",
+    "label": "Arduino Nano RP2040 Connect",
+    "family": "Arduino Mbed",
+    "fqbn": "arduino:mbed_nano:nanorp2040connect",
+    "core": "arduino:mbed_nano",
+    "additional_url": null,
+    "pin_max": 29,
+    "upload": "download"
+  },
+  {
+    "id": "esp32",
+    "label": "ESP32 DevKit / WROOM",
+    "family": "Espressif ESP32",
+    "fqbn": "esp32:esp32:esp32",
+    "core": "esp32:esp32",
+    "additional_url": "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
+    "pin_max": 33,
+    "upload": "download"
+  },
+  {
+    "id": "esp32_s2",
+    "label": "ESP32-S2 DevKit",
+    "family": "Espressif ESP32",
+    "fqbn": "esp32:esp32:esp32s2",
+    "core": "esp32:esp32",
+    "additional_url": "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
+    "pin_max": 46,
+    "upload": "download"
+  },
+  {
+    "id": "esp32_s3",
+    "label": "ESP32-S3 DevKit",
+    "family": "Espressif ESP32",
+    "fqbn": "esp32:esp32:esp32s3",
+    "core": "esp32:esp32",
+    "additional_url": "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
+    "pin_max": 48,
+    "upload": "download"
+  },
+  {
+    "id": "esp32_c3",
+    "label": "ESP32-C3 SuperMini / DevKit",
+    "family": "Espressif ESP32",
+    "fqbn": "esp32:esp32:esp32c3",
+    "core": "esp32:esp32",
+    "additional_url": "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
+    "pin_max": 21,
+    "upload": "download"
+  },
+  {
+    "id": "esp32_c6",
+    "label": "ESP32-C6 DevKit",
+    "family": "Espressif ESP32",
+    "fqbn": "esp32:esp32:esp32c6",
+    "core": "esp32:esp32",
+    "additional_url": "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
+    "pin_max": 23,
+    "upload": "download"
+  },
+  {
+    "id": "esp8266",
+    "label": "ESP8266 NodeMCU",
+    "family": "Espressif ESP8266",
+    "fqbn": "esp8266:esp8266:nodemcuv2",
+    "core": "esp8266:esp8266",
+    "additional_url": "https://arduino.esp8266.com/stable/package_esp8266com_index.json",
+    "pin_max": 16,
+    "upload": "download"
+  },
+  {
+    "id": "d1_mini",
+    "label": "LOLIN D1 mini / ESP8266",
+    "family": "Espressif ESP8266",
+    "fqbn": "esp8266:esp8266:d1_mini",
+    "core": "esp8266:esp8266",
+    "additional_url": "https://arduino.esp8266.com/stable/package_esp8266com_index.json",
+    "pin_max": 16,
+    "upload": "download"
+  },
+  {
+    "id": "pico",
+    "label": "Raspberry Pi Pico",
+    "family": "Raspberry Pi RP2040",
+    "fqbn": "rp2040:rp2040:rpipico",
+    "core": "rp2040:rp2040",
+    "additional_url": "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json",
+    "pin_max": 28,
+    "upload": "download"
+  },
+  {
+    "id": "pico_w",
+    "label": "Raspberry Pi Pico W",
+    "family": "Raspberry Pi RP2040",
+    "fqbn": "rp2040:rp2040:rpipicow",
+    "core": "rp2040:rp2040",
+    "additional_url": "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json",
+    "pin_max": 28,
+    "upload": "download"
+  }
+]

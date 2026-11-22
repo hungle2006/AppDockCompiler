@@ -1,0 +1,64 @@
+/* AppDock IDE — author-only code workspace. Server independently enforces admin privileges. */
+import {AvrFlasher} from '/firmware-flash.js';
+import {portBoardMismatch,identifySerialPort} from '/firmware-ports.js';
+import {BOARDS,boardNames,bootloader} from '/firmware-boards.js';
+const $ = s=>document.querySelector(s);
+const esc = text=>String(text).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const keyword = /\b(?:void|int|long|unsigned|short|byte|bool|boolean|char|float|double|String|const|static|volatile|return|if|else|while|for|switch|case|break|continue|true|false|HIGH|LOW|INPUT|OUTPUT|INPUT_PULLUP|class|struct|enum|public|private|include|define|uint8_t|uint16_t|uint32_t|size_t)\b/;
+const builtins=/\b(?:setup|loop|pinMode|digitalWrite|digitalRead|analogRead|analogWrite|delay|delayMicroseconds|millis|micros|Serial|Serial1|Serial2|WiFi|Wire|SPI|attachInterrupt|constrain|map)\b/;
+const tokens = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|#[^\n]*|\b[A-Za-z_][A-Za-z0-9_]*\b|\b\d+(?:\.\d+)?\b)/g;
+export function highlight(code){let out='',pos=0;for(const match of code.matchAll(tokens)){const start=match.index,token=match[0];out+=esc(code.slice(pos,start));const cls=token.startsWith('//')||token.startsWith('/*')?'comment':token.startsWith('#')?'directive':token.startsWith('"')||token.startsWith("'")?'string':/^\d/.test(token)?'number':keyword.test(token)?'keyword':builtins.test(token)?'builtin':'';out+=cls?'<span class="ide-'+cls+'">'+esc(token)+'</span>':esc(token);pos=start+token.length}return out+esc(code.slice(pos))+'\n';}
+export function setupAdminIDE({api,usb,log,createPayload}){
+ const code=$('#admin-code');const board=$('#ide-board');const readOnly=$('#ide-header-code');const library=$('#ide-libraries');
+ const consoleEl=$('#ide-console');const status=$('#ide-build-status');const progress=$('#ide-progress');
+ let job=null,working=false,flashing=false,monitorPort=null,monitorReader=null,monitorTask=null,monitorMode=false,autosave;
+ const logIde=msg=>{let s='['+new Date().toLocaleTimeString('vi-VN')+'] '+msg;consoleEl.textContent+='\n'+s;consoleEl.scrollTop=consoleEl.scrollHeight;log('IDE: '+msg)};
+ const st=(label,n=0)=>{status.textContent=label;progress.style.width=n+'%'};
+ const buttons=()=>{const ready=!!job;$('#ide-download').disabled=!ready||working||flashing;$('#ide-flash').disabled=!ready||working||flashing||!Object.hasOwn(bootloader,board.value)||!usb.selected||portBoardMismatch(usb.selected,board.value);$('#ide-verify').disabled=working||flashing;};
+ function boardMenu(){const chosen=board.value;board.replaceChildren();const groups=new Map();for(const b of BOARDS){if(!groups.has(b.family))groups.set(b.family,document.createElement('optgroup'));const opt=new Option(b.label,b.id);groups.get(b.family).label=b.family;groups.get(b.family).append(opt)}for(const group of groups.values())board.append(group);const checked=[...document.querySelectorAll('#admin-boards input:checked')].map(x=>x.value);board.value=checked.includes(chosen)?chosen:(checked[0]||'uno');buttons()}
+ function render(){const txt=code.value;$('#ide-lines').textContent=Array.from({length:Math.max(1,txt.split('\n').length)},(_,i)=>i+1).join('\n');$('#ide-highlighting').innerHTML=highlight(txt);$('#ide-stats').textContent=txt.split('\n').length+' dòng · '+new TextEncoder().encode(txt).length+' bytes · UTF-8';if(job){job=null;buttons();st('Mã nguồn đã thay đổi · cần Verify lại',0)}}
+ function sync(){render();boardMenu();$('#ide-libraries').value=Array.isArray(window.__appdockCurrentLibraries)?window.__appdockCurrentLibraries.join(', '):'';}
+ // Preserve the actual textarea for Publish and autocomplete; highlight is a noninteractive synchronized layer.
+ const area=code.parentNode;area.classList.add('ide-code-area');
+ const lines=document.createElement('pre');lines.id='ide-lines';lines.setAttribute('aria-hidden','true');
+ const stack=document.createElement('div');stack.className='ide-code-stack';
+ const high=document.createElement('pre');high.id='ide-highlighting';high.setAttribute('aria-hidden','true');
+ area.insertBefore(lines,code);area.insertBefore(stack,code);stack.append(high,code);
+ code.setAttribute('aria-label','Trình soạn thảo Arduino Sketch');
+ code.addEventListener('scroll',()=>{high.scrollTop=code.scrollTop;high.scrollLeft=code.scrollLeft;lines.scrollTop=code.scrollTop});
+ code.addEventListener('input',()=>{render();clearTimeout(autosave);autosave=setTimeout(()=>{try{localStorage.setItem('appdock-ide-local-'+($('#admin-id').value||'new'),code.value)}catch{}},350)});
+ code.addEventListener('keydown',e=>{
+  if(e.key==='Tab'){e.preventDefault();const a=code.selectionStart,b=code.selectionEnd;code.setRangeText('  ',a,b,'end');render();}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();try{localStorage.setItem('appdock-ide-local-'+($('#admin-id').value||'new'),code.value);logIde('Đã lưu bản nháp trên trình duyệt')}catch{}}
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();$('#ide-verify').click()}
+  if((e.ctrlKey||e.metaKey)&&e.key==='/'){e.preventDefault();const start=code.value.lastIndexOf('\n',code.selectionStart-1)+1;const finish=code.value.indexOf('\n',code.selectionEnd);const end=finish<0?code.value.length:finish;const block=code.value.slice(start,end).split('\n').map(s=>s.startsWith('//')?s.slice(2):'//'+s).join('\n');code.setRangeText(block,start,end);render()}
+ });
+ $('#ide-format').onclick=()=>{const lines=code.value.split('\n');let indent=0,depth=0;const formatted=lines.map(line=>{let t=line.trim();if(!t)return '';if(t.startsWith('}'))indent=Math.max(0,indent-1);const v='  '.repeat(Math.min(20,indent))+t;const x=(t.match(/\{/g)||[]).length-(t.match(/\}/g)||[]).length;indent=Math.max(0,indent+x+(t.startsWith('}')?1:0));return v});code.value=formatted.join('\n');render();logIde('Đã định dạng thụt đầu dòng (gợi ý; kiểm tra lại mã C++)')};
+ $('#ide-find').onclick=()=>{const term=prompt('Tìm trong sketch (phân biệt chữ hoa/thường):');if(!term)return;const pos=code.value.indexOf(term,code.selectionEnd);const where=pos<0?code.value.indexOf(term):pos;if(where>=0){code.focus();code.setSelectionRange(where,where+term.length);logIde('Tìm thấy "'+term+'"')}else logIde('Không tìm thấy "'+term+'"')};
+ $('#ide-tab-sketch').onclick=()=>{$('#ide-tab-sketch').classList.add('active');$('#ide-tab-header').classList.remove('active');area.hidden=false;readOnly.hidden=true};
+ $('#ide-tab-header').onclick=()=>{const fields=[...document.querySelectorAll('.variable-row')].map(row=>{const k=row.querySelector('[data-field="key"]')?.value?.trim();const v=row.querySelector('[data-field="default"]')?.value?.trim();return k?('#define '+k+' '+(Number.isNaN(Number(v))?JSON.stringify(v):v)):''}).filter(Boolean);readOnly.textContent='#pragma once\n'+(fields.join('\n')||'// Chưa có biến cấu hình')+'\n';area.hidden=true;readOnly.hidden=false;$('#ide-tab-header').classList.add('active');$('#ide-tab-sketch').classList.remove('active')};
+ $('#ide-libraries').addEventListener('change',()=>{job=null;buttons();st('Thư viện đã thay đổi · Verify lại',0)});
+ board.addEventListener('change',()=>{const choice=[...document.querySelectorAll('#admin-boards input')].find(x=>x.value===board.value);if(choice&&!choice.checked)choice.checked=true;job=null;buttons();st('Đã chọn '+(boardNames[board.value]||board.value),0)});
+ function libraries(){const names=library.value.split(/[,\n]/).map(s=>s.trim()).filter(Boolean);if(names.length>16||names.some(s=>!(/^[a-zA-Z0-9][A-Za-z0-9 _.-]{0,69}$/.test(s))))throw Error('Tên thư viện không hợp lệ (tối đa 16 thư viện)');return [...new Set(names)]}
+ $('#ide-console-clear').onclick=()=>consoleEl.textContent='Arduino IDE · AppDock Compiler\n';
+ $('#ide-verify').onclick=async()=>{if(working)return;const selectedBoard=board.value;let data;try{data=createPayload();data.libraries=libraries();data.board=selectedBoard;if(!data.id||!data.title)throw Error('Cần điền tên và mã chương trình trước khi Verify');}catch(e){logIde('LỖI: '+e.message);return}
+  working=true;job=null;buttons();st('Đang lưu bản nháp thử nghiệm…',9);let starting=Date.now(),old='';
+  try{const result=await api('verify',{body:data});const id=result.id;logIde('Đã tạo Verify #'+id.slice(0,8)+' trên nhánh kiểm thử GitHub (không phát hành).');
+   while(Date.now()-starting<20*60*1000){await new Promise(r=>setTimeout(r,4500));const s=await api('status',{query:{id}});if(s.status!==old){old=s.status;logIde('GitHub Actions: '+old)}if(s.status==='queued')st('Đang chờ GitHub runner…',24);if(s.status==='in_progress')st('Arduino CLI đang biên dịch…',66);if(s.status==='completed'){if(s.conclusion!=='success')throw Error('Verify thất bại; xem build log: '+(s.runUrl||'GitHub Actions'));if(!s.ready)throw Error('Không tìm thấy firmware artifact');job={id,board:selectedBoard};st('✓ Verify thành công · firmware sẵn sàng',100);logIde('Biên dịch thành công: '+boardNames[selectedBoard]);return}}
+   throw Error('Hết thời gian chờ biên dịch');
+  }catch(e){st('Verify thất bại',0);logIde('LỖI: '+e.message)}finally{working=false;buttons()}
+ };
+ async function getFirmware(format){if(!job)throw Error('Phải Verify thành công trước');const resp=await api('download',{query:{id:job.id,...(format?{format}:{})},raw:true});return resp.blob()}
+ $('#ide-download').onclick=async()=>{try{const blob=await getFirmware();const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='appdock-'+(board.value||'firmware')+'.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);logIde('Đã tải firmware ZIP')}catch(e){logIde('DOWNLOAD: '+e.message)}};
+ $('#ide-flash').onclick=async()=>{if(!job||job.board!==board.value)return logIde('Verify lại khi thay đổi board');if(monitorMode)await closeMonitor();const port=usb.selected;const target=board.value;if(!port||!(target in bootloader)||portBoardMismatch(port,target))return logIde('USB chưa chọn đúng hoặc board cần bộ nạp khác');if(!confirm('Xác nhận nạp '+boardNames[target]+' lên '+identifySerialPort(port).label+'? Firmware hiện tại sẽ bị ghi đè.'))return;
+  flashing=true;buttons();let flasher;try{const data=await(await getFirmware('hex')).text();flasher=new AvrFlasher(port,logIde);await flasher.start(bootloader[target]);await flasher.flash(data,n=>st('Đang nạp USB '+n+'%',n));st('✓ Đã nạp firmware, kiểm tra hoạt động của board',100)}catch(e){st('Nạp USB lỗi',0);logIde('USB UPLOAD: '+e.message)}finally{try{await flasher?.close()}catch{}flashing=false;try{await usb.scan()}catch{}buttons()}}
+ const serialOutput=$('#ide-serial-console');function serialLog(t){serialOutput.textContent+=t;serialOutput.scrollTop=serialOutput.scrollHeight}
+ async function closeMonitor(){if(!monitorMode)return;monitorMode=false;try{await monitorReader?.cancel()}catch{}try{await monitorTask}catch{}try{monitorReader?.releaseLock()}catch{}try{await monitorPort?.close()}catch{}monitorPort=null;monitorReader=null;$('#ide-serial-start').disabled=false;$('#ide-serial-stop').disabled=true;serialLog('\n[Đã ngắt serial]\n')}
+ $('#ide-serial-start').onclick=async()=>{try{if(!usb.supported)throw Error('Cần Chrome/Edge hỗ trợ Web Serial');if(!usb.selected)throw Error('Hãy cấp quyền hoặc chọn cổng USB trong phần kết nối');if(flashing)throw Error('Đang nạp USB');monitorPort=usb.selected;await monitorPort.open({baudRate:Number($('#ide-baud').value)});monitorReader=monitorPort.readable.getReader();monitorMode=true;$('#ide-serial-start').disabled=true;$('#ide-serial-stop').disabled=false;serialLog('\n[Serial '+$('#ide-baud').value+' baud]\n');monitorTask=(async()=>{try{const decoder=new TextDecoder();while(monitorMode){let r=await monitorReader.read();if(r.done)break;serialLog(decoder.decode(r.value,{stream:true}))}}catch(e){if(monitorMode)serialLog('\n[Serial lỗi: '+e.message+']')}finally{}})()}catch(e){serialLog('\n[Lỗi: '+e.message+']');try{await monitorPort?.close()}catch{}monitorPort=null}}
+ $('#ide-serial-stop').onclick=closeMonitor;
+ $('#ide-serial-send').onclick=async()=>{if(!monitorPort)return serialLog('\n[Chưa kết nối serial]');const input=$('#ide-serial-input'),suffix=$('#ide-ending').value;const value=input.value+(suffix==='nl'?'\n':suffix==='crlf'?'\r\n':'');try{const w=monitorPort.writable.getWriter();try{await w.write(new TextEncoder().encode(value))}finally{w.releaseLock()}serialLog('\n→ '+input.value+'\n');input.value=''}catch(e){serialLog('\n[Không gửi được: '+e.message+']')}};
+ $('#ide-serial-clear').onclick=()=>serialOutput.textContent='';
+ // Called only for a server-confirmed administrator; not an authorization boundary.
+ sync();$('#ide-download').disabled=true;$('#ide-flash').disabled=true;$('#ide-serial-stop').disabled=true;
+ return {sync,boardMenu,libraries,closeMonitor,refresh:buttons,reset:()=>{job=null;st('Chưa Verify',0);sync()}};
+}
