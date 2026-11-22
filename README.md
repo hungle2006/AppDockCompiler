@@ -6,12 +6,12 @@ This is **not a separate user-facing app**. It powers the existing **Nạp firmw
 
 ## Admin vs public users
 
-- **Admin (Google owner session)**: create/edit Arduino `.ino` sketches, syntax-highlighting editor, indent, Ctrl+S local draft, Ctrl+Enter Verify, board manager with 26 targets, Library Manager, build console, artifact download, STK500v1 upload for supported AVR boards, and Serial Monitor over Web Serial. Publishing code and selecting user-editable fields is admin-only.
+- **Admin (Google owner session)**: create/edit Arduino `.ino` sketches, syntax-highlighting editor, indent, Ctrl+S local draft, Ctrl+Enter Verify, board manager with 31 targets, Library Manager, build console, artifact download, STK500v1 upload for supported AVR boards, and Serial Monitor over Web Serial. Publishing code and selecting user-editable fields is admin-only.
 - **User**: select one of the admin-published programs, select an authorized board, edit only fields explicitly allowed by its manifest, compile using GitHub Actions and download/upload firmware where the bootloader is supported. Public UI never accepts arbitrary C++ code.
 
 ### Board targets
 
-All **26** targets are in [`boards/boards.json`](boards/boards.json), shared with Python preparation and the browser board manager. Families: Arduino AVR, megaAVR, Renesas UNO R4, SAMD, Mbed, ESP32, ESP8266, RP2040 Pico/Pico W. Each target includes the selected Arduino CLI FQBN and core index URL where required.
+All **31** targets are in [`boards/boards.json`](boards/boards.json), shared with Python preparation and the browser board manager. Families: Arduino AVR, megaAVR, Renesas UNO R4, SAMD, Mbed, ESP32, ESP8266, RP2040 Pico/Pico W. Each target includes the selected Arduino CLI FQBN and core index URL where required.
 
 **Compile ≠ Browser USB flashing.** AppDock offers browser upload implementations for Uno/Nano/RF-Nano (STK500v1), Mega 2560 (STK500v2), ESP32/S2/S3/C3/C6 and ESP8266/D1 Mini (esptool-js). Pico/Pico W use BOOTSEL + UF2 copying; Leonardo/Micro, UNO R4, etc. remain compile/download only. Hardware support must be verified on the real target; flashing always requires user confirmation.
 
@@ -42,6 +42,6 @@ The original AppDock authentication and database APIs are kept intact. The servi
 
 ### Testing & limitations
 
-Local static tests cover 26 board mappings, admin controls, Verify request payloads, guest isolation, and responsive width 320–1440px. GitHub Actions must complete smoke compilation after changes are pushed. End-to-end web compilation depends on a valid `GITHUB_ACTIONS_TOKEN`; real USB flashing depends on a compatible Chrome/Edge desktop browser, USB permission and physical bootloader.
+Local static tests cover 31 board mappings, admin controls, Verify request payloads, guest isolation, and responsive width 320–1440px. GitHub Actions must complete smoke compilation after changes are pushed. End-to-end web compilation depends on a valid `GITHUB_ACTIONS_TOKEN`; real USB flashing depends on a compatible Chrome/Edge desktop browser, USB permission and physical bootloader.
 
 **Verified 22 Nov 2026:** 21 JS tests and 5 Python package tests passed; GitHub Actions Uno smoke build [passed](https://github.com/hungle2006/AppDockCompiler/actions/runs/45038709870); Vercel production deployment READY; `/firmware` and bundled uploader served HTTP 200; compiler and database health OK. ESP32/ESP8266/Mega physical flashing has **not yet been verified**.
