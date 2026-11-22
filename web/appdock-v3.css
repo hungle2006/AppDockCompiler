@@ -1,0 +1,114 @@
+/* AppDock v3: shared UI foundation — midnight ink, cobalt, porcelain */
+:root{--green:#315fd0;--muted:#64748b;--line:#dfe6f1;--dock-panel:#ffffff;--dock-border:#dfe6f1;--dock-accent:#315fd0;font-family:Inter,"Segoe UI",ui-sans-serif,system-ui,sans-serif;color:#182941;background:#f3f6fc;-webkit-font-smoothing:antialiased}
+body{background:radial-gradient(circle at 85% 0%,#e7efff 0%,transparent 34%),#f3f6fc;color:#192b45}
+button,a,input,select,textarea{transition:border-color .17s,background-color .17s,box-shadow .17s,color .17s}
+:where(button,a,input,select,textarea):focus-visible{outline:3px solid #95b4ff;outline-offset:2px}
+button.primary,.primary{background:#315fd0;border-color:#315fd0;color:#fff;box-shadow:0 4px 10px #315fd01d}
+button.primary:hover,.primary:hover{background:#244fb6;border-color:#244fb6}
+.sidebar{width:248px;padding:calc(28px + var(--safe-top)) 16px calc(18px + var(--safe-bottom));background:linear-gradient(154deg,#111d32 0%,#142942 70%,#16304f 100%);border-right:1px solid #2b4161;box-shadow:8px 0 20px #183a6012;}
+.sidebar .brand{font-size:22px;font-weight:800;letter-spacing:-.9px;color:#f4f8ff;margin-bottom:4px;padding-bottom:36px;}
+.sidebar .logo{height:40px;width:40px;border-radius:12px;background:linear-gradient(130deg,#527cf0,#2867dc);box-shadow:0 8px 18px #0e367d55;color:#fff}
+.sidebar .nav{gap:5px}
+.sidebar .nav button{border-radius:11px;min-height:46px;color:#bdcce3;gap:12px;font-size:13px;padding:11px 14px;}
+.sidebar .nav button:hover{background:#283d5e;color:#fff}
+.sidebar .nav button.active{background:#324e7b;color:#fff;box-shadow:inset 3px 0 #89b2ff;font-weight:750}
+.sidebar .nav .nav-count{color:#dbe9ff;background:#395c8a;border-radius:6px}
+.sidebar .sidebar-bottom{padding-top:34px}
+.sidebar .profile{border-top:1px solid #365073;padding:22px 10px 0;color:#ecf4ff}
+.sidebar .profile strong{color:#f4f8ff;font-weight:700}
+.sidebar .profile small{color:#a7b9d0}
+.sidebar .avatar{background:#324a6a;color:#d9e8ff}
+.sidebar .profile .icon-button{color:#b9cae2}
+.content{margin-left:248px;width:calc(100% - 248px)}
+.topbar{background:#ffffffed;border-color:#e1e8f2;min-height:76px;padding:18px clamp(22px,3.15vw,48px)}
+.crumb{font-size:12px;color:#8b9ab0}
+.crumb strong{color:#546781;font-weight:700}
+.top-actions{gap:12px}
+.login-button,.secondary{border-color:#dbe4f1;border-radius:10px;color:#38557d;background:#fff}
+.login-button:hover,.secondary:hover{background:#f7faff;border-color:#b8cbec}
+.account-badge{background:#eaf0ff;color:#315fd0}
+.connection{background:#20b79f;box-shadow:0 0 0 3px #19b39722}
+main{max-width:1510px;padding:40px clamp(23px,3.2vw,50px) 32px}
+.page-title{margin-bottom:25px;gap:22px}
+h1{font-size:clamp(26px,2.4vw,35px);font-weight:780;letter-spacing:-1.2px;line-height:1.17;color:#162946}
+h2{color:#243952;font-weight:760;letter-spacing:-.3px}
+h3{color:#243952}
+.subtitle{font-size:13px;color:#74839b;margin-top:10px;line-height:1.65}
+.catalog-tools{gap:12px;margin-bottom:18px}
+.search{border:1px solid #dfe7f2;border-radius:12px;background:#fff;box-shadow:0 5px 15px #28436508}
+.search input{font-size:13px;min-height:48px;padding:14px 0}
+.search:focus-within{border-color:#7a9be9;box-shadow:0 0 0 3px #4d79da20}
+.search .icon{color:#7b91b3}
+.catalog-filters{border-color:#e3eaf4;padding-bottom:18px}
+.tabs{gap:8px}
+.tabs button{border-radius:9px;min-height:37px;color:#647791;font-weight:650;padding:8px 13px;font-size:12px}
+.tabs button.selected{background:#e9f0ff;color:#3159ba;border-color:#d5e4ff}
+.tabs button:hover{background:#f1f5fd}
+.results-bar{font-size:12px;color:#71829b;margin:22px 0 17px}
+.sort-control select{color:#536886}
+.grid{gap:18px}
+.app-card{border-color:#e1e8f2;border-radius:18px;background:#fff;padding:23px;box-shadow:0 3px 10px #1e3b6607;transition:box-shadow .2s,border-color .2s,transform .2s}
+.app-card:hover{border-color:#bdd1f7;box-shadow:0 13px 32px #263e6819;transform:translateY(-2px)}
+.app-icon{border-radius:15px;background:#edf1ff;color:#4874c9;width:53px;height:53px}
+.app-icon.html{background:#e6f4f7;color:#1d949b}
+.app-icon.android{background:#eff8e5;color:#6e943b}
+.app-icon.ios{background:#eceafb;color:#6b67ae}
+.app-icon.desktop{background:#e9f0ff;color:#4572c5}
+.app-icon.archive{background:#fff1e5;color:#bc793d}
+.card-title{font-size:15px;color:#253853;font-weight:750}
+.card-title:hover{color:#315fd0}
+.app-card>p,.card-meta,.version-label{color:#6d7e96}
+.card-bottom{border-color:#edf0f6}
+.get-button{background:#e9f0ff;color:#3159bb;border-radius:9px;font-weight:750}
+.get-button:hover{background:#dbe8ff}
+.empty{border-radius:18px;border-color:#cfdbea;background:linear-gradient(160deg,#fff,#f8faff);min-height:360px}
+.empty-art>div{border-color:#d3e1f4;box-shadow:0 12px 22px #1b428916}
+.empty-art .icon{color:#577ec7}
+.empty h2{font-size:19px}
+.empty p{color:#697d99}
+.manage-tools{gap:16px}
+.app-list{border-color:#dfe7f2;border-radius:15px;box-shadow:0 6px 24px #28426609}
+.list-head{background:#f7faff;border-color:#e3eaf5;color:#71819a}
+.list-row{border-color:#ebf0f8}
+.list-row:hover{background:#f8faff}
+.skeleton-card{border-color:#e1e8f2;border-radius:18px}
+/* Home feature and discovery surfaces */
+.storefront{gap:20px}
+.feature-app{border:1px solid #365fbc!important;background:linear-gradient(125deg,#172b51,#2653a3 77%,#316ac9)!important;color:#fff!important;box-shadow:0 14px 38px #1d46852c;border-radius:20px}
+.feature-copy h2{color:#fff!important;font-weight:800;letter-spacing:-1px}
+.feature-copy p{color:#d2e2ff!important}
+.feature-label{color:#c5d9ff!important}
+.feature-link{color:#fff!important}
+.feature-symbol{background:linear-gradient(130deg,#a1bdff,#719cf5)!important;color:#193b80!important;box-shadow:0 12px 30px #071b5299}
+.fresh-list{border:1px solid #dfe7f2;background:#fff;border-radius:20px;box-shadow:0 8px 28px #1c39630c}
+.fresh-app:hover{background:#f8faff}
+.collection-heading h2{color:#1c3252}
+.library-heading{margin-top:30px}
+/* Firmware nav embedded into the old AppDock navigation */
+.appdock-firmware-nav{min-height:46px!important;padding:12px 14px!important;border-radius:11px!important;color:#b8cbe5!important;font-weight:650!important}
+.appdock-firmware-nav:hover{background:#2b4265!important;color:#fff!important}
+.appdock-firmware-nav-icon{color:#a6c0e7!important}
+.appdock-firmware-nav-tag{background:#31527e!important;color:#d3e5ff!important;border-color:#40618e!important}
+/* Dialogs and action surfaces */
+dialog{border-radius:18px;box-shadow:0 24px 75px #091b3b55;border-color:#dce4f0}
+input,select,textarea{accent-color:#315fd0}
+/* Dark palette: same shared AppDock preference */
+:root[data-appdock-theme=dark]{--green:#81a9ff;--muted:#b3c1d8;--line:#354a68;--dock-panel:#182a40;--dock-border:#354a68;--dock-accent:#91b6ff;color:#e5eefb;background:#0d1728}
+:root[data-appdock-theme=dark] body{background:#0d1728;color:#e5eefb}
+:root[data-appdock-theme=dark] .topbar{background:#15233a;border-color:#304461}
+:root[data-appdock-theme=dark] .sidebar{background:linear-gradient(150deg,#0d192e,#152b47);border-color:#2d4060}
+:root[data-appdock-theme=dark] :is(h1,h2,h3,.card-title,.collection-heading h2){color:#e6efff}
+:root[data-appdock-theme=dark] :is(.app-card,.fresh-list,.search,.app-list,.empty){background:#192b42;border-color:#334968}
+:root[data-appdock-theme=dark] :is(.app-card>p,.card-meta,.subtitle,.empty p,.version-label){color:#aabbd2}
+:root[data-appdock-theme=dark] .list-head{background:#223650;border-color:#37516c;color:#bac7df}
+:root[data-appdock-theme=dark] .list-row{border-color:#2e4565}
+:root[data-appdock-theme=dark] .list-row:hover{background:#203a59}
+:root[data-appdock-theme=dark] .get-button,:root[data-appdock-theme=dark] .tabs button.selected{background:#28466e;color:#d1e1ff}
+:root[data-appdock-theme=dark] .app-card:hover{border-color:#6487b5}
+:root[data-appdock-theme=dark] .search input{color:#e8f2ff}
+/* Mobile: keep AppDock drawer behavior, do not move its JS listeners */
+@media(max-width:1200px){main{padding:30px 24px}.grid{gap:14px}.sidebar{width:222px}.content{margin-left:222px;width:calc(100% - 222px)}}
+@media(max-width:780px){.topbar{padding:15px 19px}main{padding:24px 20px 30px}.page-title h1{font-size:28px}.grid{gap:12px}.app-card{padding:19px}.catalog-tools{gap:10px}}
+@media(max-width:700px){.sidebar{width:min(270px,85vw)}.content{margin-left:0;width:100%}main{padding:23px 16px 28px}.topbar{padding:calc(13px + var(--safe-top)) 15px 12px}.page-title h1{font-size:27px}.page-title{align-items:flex-start}.grid{gap:12px}.app-card{padding:18px}.storefront{gap:14px}.feature-app{border-radius:18px}.fresh-list{border-radius:18px}.feature-copy h2{font-size:28px}.tabs{gap:6px}.tabs button{padding:8px 11px}.mobile-nav button.active{background:#dce8ff;color:#3159b9}}
+@media(max-width:380px){.app-card{padding:15px}.feature-app{padding:22px}.feature-copy h2{font-size:24px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;transform:none!important;animation:none!important}}
