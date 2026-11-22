@@ -33,6 +33,7 @@ on:
       - 'scripts/prepare.py'
       - 'boards/**'
       - 'projects/**'
+      - 'scripts/package_firmware.py'
 permissions:
   contents: read
 concurrency:
@@ -99,14 +100,11 @@ jobs:
               subprocess.run(['arduino-cli','lib','install',lib],check=True,timeout=180)
           PY
           arduino-cli compile --fqbn "$FQBN" --output-dir build/output --warnings default build/AppDockSketch
-      - name: Package firmware
+      - name: Package board-specific firmware and flash offsets
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p build/artifact
-          find build/output -maxdepth 1 -type f \( -name '*.hex' -o -name '*.bin' -o -name '*.json' \) ! -name '*with_bootloader*' -exec cp '{}' build/artifact/ \;
-          test "$(find build/artifact -type f | wc -l)" -gt 0
-          cp build/selection.json build/artifact/build-info.json
+          python3 scripts/package_firmware.py
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:

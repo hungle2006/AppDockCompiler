@@ -57,7 +57,7 @@
     "core": "arduino:avr",
     "additional_url": null,
     "pin_max": 53,
-    "upload": "download"
+    "upload": "stk500v2"
   },
   {
     "id": "leonardo",
@@ -177,7 +177,7 @@
     "core": "esp32:esp32",
     "additional_url": "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
     "pin_max": 33,
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "esp32_s2",
@@ -187,7 +187,7 @@
     "core": "esp32:esp32",
     "additional_url": "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
     "pin_max": 46,
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "esp32_s3",
@@ -197,7 +197,7 @@
     "core": "esp32:esp32",
     "additional_url": "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
     "pin_max": 48,
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "esp32_c3",
@@ -207,7 +207,7 @@
     "core": "esp32:esp32",
     "additional_url": "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
     "pin_max": 21,
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "esp32_c6",
@@ -217,7 +217,7 @@
     "core": "esp32:esp32",
     "additional_url": "https://espressif.github.io/arduino-esp32/package_esp32_index.json",
     "pin_max": 23,
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "esp8266",
@@ -227,7 +227,7 @@
     "core": "esp8266:esp8266",
     "additional_url": "https://arduino.esp8266.com/stable/package_esp8266com_index.json",
     "pin_max": 16,
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "d1_mini",
@@ -237,7 +237,7 @@
     "core": "esp8266:esp8266",
     "additional_url": "https://arduino.esp8266.com/stable/package_esp8266com_index.json",
     "pin_max": 16,
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "pico",

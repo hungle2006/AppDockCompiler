@@ -34,7 +34,7 @@ export const BOARDS=[
     "id": "mega",
     "label": "Arduino Mega 2560",
     "family": "Arduino AVR",
-    "upload": "download"
+    "upload": "stk500v2"
   },
   {
     "id": "leonardo",
@@ -106,43 +106,43 @@ export const BOARDS=[
     "id": "esp32",
     "label": "ESP32 DevKit / WROOM",
     "family": "Espressif ESP32",
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "esp32_s2",
     "label": "ESP32-S2 DevKit",
     "family": "Espressif ESP32",
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "esp32_s3",
     "label": "ESP32-S3 DevKit",
     "family": "Espressif ESP32",
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "esp32_c3",
     "label": "ESP32-C3 SuperMini / DevKit",
     "family": "Espressif ESP32",
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "esp32_c6",
     "label": "ESP32-C6 DevKit",
     "family": "Espressif ESP32",
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "esp8266",
     "label": "ESP8266 NodeMCU",
     "family": "Espressif ESP8266",
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "d1_mini",
     "label": "LOLIN D1 mini / ESP8266",
     "family": "Espressif ESP8266",
-    "upload": "download"
+    "upload": "esptool"
   },
   {
     "id": "pico",

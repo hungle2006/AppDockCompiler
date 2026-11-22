@@ -1,5 +1,5 @@
 /* AppDock IDE — author-only code workspace. Server independently enforces admin privileges. */
-import {AvrFlasher} from '/firmware-flash.js';
+import {uploadFirmware,uploadProtocol,methodDescription} from '/firmware-uploader.js';
 import {portBoardMismatch,identifySerialPort} from '/firmware-ports.js';
 import {BOARDS,boardNames,bootloader} from '/firmware-boards.js';
 const $ = s=>document.querySelector(s);
@@ -14,7 +14,7 @@ export function setupAdminIDE({api,usb,log,createPayload}){
  let job=null,working=false,flashing=false,monitorPort=null,monitorReader=null,monitorTask=null,monitorMode=false,autosave;
  const logIde=msg=>{let s='['+new Date().toLocaleTimeString('vi-VN')+'] '+msg;consoleEl.textContent+='\n'+s;consoleEl.scrollTop=consoleEl.scrollHeight;log('IDE: '+msg)};
  const st=(label,n=0)=>{status.textContent=label;progress.style.width=n+'%'};
- const buttons=()=>{const ready=!!job;$('#ide-download').disabled=!ready||working||flashing;$('#ide-flash').disabled=!ready||working||flashing||!Object.hasOwn(bootloader,board.value)||!usb.selected||portBoardMismatch(usb.selected,board.value);$('#ide-verify').disabled=working||flashing;};
+ const buttons=()=>{const ready=!!job;$('#ide-download').disabled=!ready||working||flashing;$('#ide-flash').disabled=!ready||working||flashing||uploadProtocol(board.value)==='download'||!usb.selected||portBoardMismatch(usb.selected,board.value);$('#ide-verify').disabled=working||flashing;};
  function boardMenu(){const chosen=board.value;board.replaceChildren();const groups=new Map();for(const b of BOARDS){if(!groups.has(b.family))groups.set(b.family,document.createElement('optgroup'));const opt=new Option(b.label,b.id);groups.get(b.family).label=b.family;groups.get(b.family).append(opt)}for(const group of groups.values())board.append(group);const checked=[...document.querySelectorAll('#admin-boards input:checked')].map(x=>x.value);board.value=checked.includes(chosen)?chosen:(checked[0]||'uno');buttons()}
  function render(){const txt=code.value;$('#ide-lines').textContent=Array.from({length:Math.max(1,txt.split('\n').length)},(_,i)=>i+1).join('\n');$('#ide-highlighting').innerHTML=highlight(txt);$('#ide-stats').textContent=txt.split('\n').length+' dòng · '+new TextEncoder().encode(txt).length+' bytes · UTF-8';if(job){job=null;buttons();st('Mã nguồn đã thay đổi · cần Verify lại',0)}}
  function sync(){render();boardMenu();$('#ide-libraries').value=Array.isArray(window.__appdockCurrentLibraries)?window.__appdockCurrentLibraries.join(', '):'';}
@@ -50,8 +50,19 @@ export function setupAdminIDE({api,usb,log,createPayload}){
  };
  async function getFirmware(format){if(!job)throw Error('Phải Verify thành công trước');const resp=await api('download',{query:{id:job.id,...(format?{format}:{})},raw:true});return resp.blob()}
  $('#ide-download').onclick=async()=>{try{const blob=await getFirmware();const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='appdock-'+(board.value||'firmware')+'.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);logIde('Đã tải firmware ZIP')}catch(e){logIde('DOWNLOAD: '+e.message)}};
- $('#ide-flash').onclick=async()=>{if(!job||job.board!==board.value)return logIde('Verify lại khi thay đổi board');if(monitorMode)await closeMonitor();const port=usb.selected;const target=board.value;if(!port||!(target in bootloader)||portBoardMismatch(port,target))return logIde('USB chưa chọn đúng hoặc board cần bộ nạp khác');if(!confirm('Xác nhận nạp '+boardNames[target]+' lên '+identifySerialPort(port).label+'? Firmware hiện tại sẽ bị ghi đè.'))return;
-  flashing=true;buttons();let flasher;try{const data=await(await getFirmware('hex')).text();flasher=new AvrFlasher(port,logIde);await flasher.start(bootloader[target]);await flasher.flash(data,n=>st('Đang nạp USB '+n+'%',n));st('✓ Đã nạp firmware, kiểm tra hoạt động của board',100)}catch(e){st('Nạp USB lỗi',0);logIde('USB UPLOAD: '+e.message)}finally{try{await flasher?.close()}catch{}flashing=false;try{await usb.scan()}catch{}buttons()}}
+ $('#ide-flash').onclick=async()=>{
+  if(!job||job.board!==board.value)return logIde('Cần Verify lại khi đổi board');
+  if(monitorMode)await closeMonitor();
+  const port=usb.selected,target=board.value;
+  if(!port||uploadProtocol(target)==='download'||portBoardMismatch(port,target))return logIde('USB: '+methodDescription(target));
+  if(!confirm('Xác nhận nạp '+boardNames[target]+' qua '+identifySerialPort(port).label+'? Firmware đang chạy sẽ bị ghi đè.'))return;
+  flashing=true;buttons();
+  try{
+   await uploadFirmware({board:target,port,fetchFirmware:async format=>api('download',{query:{id:job.id,format},raw:true}),log:logIde,progress:n=>st('Đang nạp USB '+n+'%',n)});
+   st('✓ Đã nạp firmware · kiểm tra board',100);
+  }catch(e){st('Nạp USB lỗi',0);logIde('UPLOAD: '+e.message)}
+  finally{flashing=false;try{await usb.scan()}catch{}buttons()}
+ };
  const serialOutput=$('#ide-serial-console');function serialLog(t){serialOutput.textContent+=t;serialOutput.scrollTop=serialOutput.scrollHeight}
  async function closeMonitor(){if(!monitorMode)return;monitorMode=false;try{await monitorReader?.cancel()}catch{}try{await monitorTask}catch{}try{monitorReader?.releaseLock()}catch{}try{await monitorPort?.close()}catch{}monitorPort=null;monitorReader=null;$('#ide-serial-start').disabled=false;$('#ide-serial-stop').disabled=true;serialLog('\n[Đã ngắt serial]\n')}
  $('#ide-serial-start').onclick=async()=>{try{if(!usb.supported)throw Error('Cần Chrome/Edge hỗ trợ Web Serial');if(!usb.selected)throw Error('Hãy cấp quyền hoặc chọn cổng USB trong phần kết nối');if(flashing)throw Error('Đang nạp USB');monitorPort=usb.selected;await monitorPort.open({baudRate:Number($('#ide-baud').value)});monitorReader=monitorPort.readable.getReader();monitorMode=true;$('#ide-serial-start').disabled=true;$('#ide-serial-stop').disabled=false;serialLog('\n[Serial '+$('#ide-baud').value+' baud]\n');monitorTask=(async()=>{try{const decoder=new TextDecoder();while(monitorMode){let r=await monitorReader.read();if(r.done)break;serialLog(decoder.decode(r.value,{stream:true}))}}catch(e){if(monitorMode)serialLog('\n[Serial lỗi: '+e.message+']')}finally{}})()}catch(e){serialLog('\n[Lỗi: '+e.message+']');try{await monitorPort?.close()}catch{}monitorPort=null}}

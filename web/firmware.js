@@ -1,4 +1,4 @@
-import {AvrFlasher} from '/firmware-flash.js';
+import {uploadFirmware,uploadProtocol,methodDescription} from '/firmware-uploader.js';
 import {SerialPortManager, identifySerialPort, portBoardMismatch} from '/firmware-ports.js';
 const $=sel=>document.querySelector(sel);
 import {BOARDS,boardNames,bootloader} from '/firmware-boards.js';
@@ -19,7 +19,7 @@ function usbHelp(text,kind=''){
 }
 function updateFlashAvailability(){
  const board=$('#board')?.value;
- $('#flash').disabled=!buildReady||busy||flashing||!usb.supported||!usb.selected||!Object.hasOwn(bootloader,board)||portBoardMismatch(usb.selected,board);
+ $('#flash').disabled=!buildReady||busy||flashing||!usb.supported||!usb.selected||uploadProtocol(board)==='download'||portBoardMismatch(usb.selected,board);
 }
 function updateUsbUi(state){
  const dropdown=$('#usb-select');if(!dropdown)return;
@@ -87,7 +87,7 @@ function button(text,cls,fn){let b=create('button',text,cls);b.type='button';if(
 async function load(){try{let [list,session,health]=await Promise.all([api('list'),api('session'),api('health')]);projects=list.projects||[];admin=session.admin===true;$('#admin-nav').hidden=!admin;$('#mobile-admin').hidden=!admin;$('#statusdot').classList.toggle('ready',health.compilerReady);$('#servertext').textContent=health.compilerReady?'GitHub Compiler sẵn sàng':'Chưa kích hoạt GitHub Token';if(!health.compilerReady)log('Máy chủ chưa có GitHub Actions Token. Bạn vẫn có thể xem và lưu cấu hình.');if(admin&&!ideController){ideController=setupAdminIDE({api,usb,log,createPayload:adminPayload});}$('#count').textContent=projects.length+' chương trình';renderCards();if(selected){const fresh=projects.find(p=>p.id===selected.id);if(fresh)selectProject(fresh)}else if(projects.length)selectProject(projects[0])}catch(e){$('#cards').replaceChildren(create('p','Không tải được thư viện: '+e.message,'empty'));$('#servertext').textContent='Lỗi kết nối';log('LỖI: '+e.message)}}
 function renderCards(){let root=$('#cards');root.replaceChildren();let q=$('#search').value.trim().toLocaleLowerCase('vi-VN'),items=projects.filter(p=>(p.title+' '+p.description+' '+p.id).toLocaleLowerCase('vi-VN').includes(q));if(!items.length){root.append(create('div','Chưa có chương trình phù hợp.','empty'));return}for(const item of items){let card=create('div',undefined,'firmware-card'+(selected?.id===item.id?' active':'')),icon=create('div','⌘','card-icon'),details=create('div',undefined,'card-details'),title=create('strong',item.title),description=create('small',item.description),tags=create('div',undefined,'tagline');for(const b of item.boards.slice(0,4))tags.append(create('span',boardNames[b]?.replace('Arduino ','')||b,'tag'));if(item.boards.length>4)tags.append(create('span','+'+(item.boards.length-4),'tag'));details.append(title,description,tags);card.append(icon,details,create('span','›','arrow'));let choose=button('Chọn chương trình','',()=>selectProject(item));choose.className='cover-button';choose.setAttribute('aria-label','Chọn '+item.title);choose.style.cssText='position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer';card.style.position='relative';card.append(choose);if(admin){let edit=button('✎ Sửa','button light',()=>editProject(item.id));edit.style.cssText='position:relative;z-index:2;font-size:10px;padding:6px;min-height:29px';card.append(edit)}root.append(card)}}
 function selectProject(item){selected=item;$('#config-empty').hidden=true;$('#config-form').hidden=false;$('#config-title').textContent=item.title;$('#config-description').textContent=item.description||'Chỉ những biến được cho phép mới có thể thay đổi';let board=$('#board');board.replaceChildren();const groups=new Map();for(const id of item.boards){const info=BOARDS.find(x=>x.id===id);const family=info?.family||'Khác';if(!groups.has(family)){const group=create('optgroup');group.label=family;groups.set(family,group);board.append(group)}let option=create('option',boardNames[id]||id);option.value=id;groups.get(family).append(option)}const prior=localStorage.getItem('appdock-board-'+item.id);if(prior&&item.boards.includes(prior))board.value=prior;renderFields();clearBuild();renderCards();updateUsbUi(usb.snapshot())}
-function renderFields(){if(!selected)return;let b=$('#board').value;localStorage.setItem('appdock-board-'+selected.id,b);$('#board-help').textContent='Board: '+(boardNames[b]||b)+' · chọn đúng phiên bản bootloader';let root=$('#variables');root.replaceChildren();let saved={};try{saved=JSON.parse(localStorage.getItem('appdock-config-'+selected.id+'-'+b)||'{}')}catch{}for(const f of selected.fields){let label=create('label',undefined,'field'),caption=create('span',f.label),el;const value=Object.hasOwn(saved,f.key)?saved[f.key]:f.default;if(f.type==='choice'){el=create('select');for(const o of f.options||[]){let option=create('option',String(o));option.value=String(o);el.append(option)}el.value=String(value)}else if(f.type==='boolean'){el=create('input');el.type='checkbox';el.className='toggle';el.checked=!!value}else{el=create('input');el.type=['integer','pin'].includes(f.type)?'number':'text';el.value=value??'';if(el.type==='number'){el.step='1';el.min=f.min??0;el.max=f.max??1000000}else el.maxLength=f.maxLength||64;el.placeholder=f.type==='pin'?'GPIO':f.type==='address'?'192.168.1.10':'Nhập giá trị'}el.dataset.variable=f.key;el.addEventListener('input',()=>{if(buildReady)clearBuild()});label.append(caption,el);if(f.help)label.append(create('small',f.help));root.append(label)}$('#compile').disabled=false;clearBuild()}
+function renderFields(){if(!selected)return;let b=$('#board').value;localStorage.setItem('appdock-board-'+selected.id,b);$('#board-help').textContent='Board: '+(boardNames[b]||b)+' · '+methodDescription(b);let root=$('#variables');root.replaceChildren();let saved={};try{saved=JSON.parse(localStorage.getItem('appdock-config-'+selected.id+'-'+b)||'{}')}catch{}for(const f of selected.fields){let label=create('label',undefined,'field'),caption=create('span',f.label),el;const value=Object.hasOwn(saved,f.key)?saved[f.key]:f.default;if(f.type==='choice'){el=create('select');for(const o of f.options||[]){let option=create('option',String(o));option.value=String(o);el.append(option)}el.value=String(value)}else if(f.type==='boolean'){el=create('input');el.type='checkbox';el.className='toggle';el.checked=!!value}else{el=create('input');el.type=['integer','pin'].includes(f.type)?'number':'text';el.value=value??'';if(el.type==='number'){el.step='1';el.min=f.min??0;el.max=f.max??1000000}else el.maxLength=f.maxLength||64;el.placeholder=f.type==='pin'?'GPIO':f.type==='address'?'192.168.1.10':'Nhập giá trị'}el.dataset.variable=f.key;el.addEventListener('input',()=>{if(buildReady)clearBuild()});label.append(caption,el);if(f.help)label.append(create('small',f.help));root.append(label)}$('#compile').disabled=false;clearBuild()}
 function collectConfig(){if(!selected)throw Error('Chưa chọn chương trình');let result={};for(const f of selected.fields){let el=[...document.querySelectorAll('[data-variable]')].find(x=>x.dataset.variable===f.key);if(!el)throw Error('Thiếu biến '+f.key);let value=f.type==='boolean'?el.checked:['pin','integer'].includes(f.type)?Number(el.value):el.value;if(['pin','integer'].includes(f.type)&&(!Number.isSafeInteger(value)||el.value===''))throw Error(f.label+': cần số nguyên');if(f.type==='choice'&&typeof f.default==='number')value=Number(value);result[f.key]=value}return result}
 $('#search').addEventListener('input',renderCards);$('#board').addEventListener('change',()=>{renderFields();updateUsbUi(usb.snapshot())});$('#save-config').onclick=()=>{try{let conf=collectConfig();localStorage.setItem('appdock-config-'+selected.id+'-'+$('#board').value,JSON.stringify(conf));log('Đã lưu cấu hình cục bộ cho '+selected.title)}catch(e){log(e.message)}};$('#reset-config').onclick=()=>{if(!selected)return;localStorage.removeItem('appdock-config-'+selected.id+'-'+$('#board').value);renderFields()};$('#clear-log').onclick=()=>$('#log').textContent='Console đã xóa.';$('#btn-reload').onclick=load;
 $('#compile').onclick=async()=>{if(busy||!selected)return;busy=true;$('#compile').disabled=true;$('#download').disabled=true;$('#flash').disabled=true;buildReady=false;let start=Date.now();try{let values=collectConfig();progress('Đang gửi yêu cầu biên dịch',12);let r=await api('compile',{body:{project:selected.id,board:$('#board').value,config:values}});buildId=r.id;log('Đã tạo công việc #'+buildId.slice(0,8));let state='';while(Date.now()-start<14*60*1000){await new Promise(resolve=>setTimeout(resolve,4500));let s=await api('status',{query:{id:buildId}});if(s.status!==state){state=s.status;log('GitHub Actions: '+state)}if(s.status==='queued')progress('Đang xếp hàng GitHub Actions',28);if(s.status==='in_progress')progress('Đang biên dịch firmware',60);if(s.status==='completed'){if(s.conclusion!=='success')throw Error('GitHub Actions báo thất bại. '+(s.runUrl||''));if(!s.ready)throw Error('Chưa tìm được firmware artifact');buildReady=true;progress('Biên dịch thành công',100);$('#download').disabled=false;updateFlashAvailability();log('Firmware đã sẵn sàng; có thể tải hoặc nạp USB khi tương thích.');break}}if(!buildReady)throw Error('Quá thời gian chờ Github Actions')}catch(e){progress('Lỗi biên dịch',0);log('LỖI: '+e.message)}finally{busy=false;$('#compile').disabled=!selected}};
@@ -96,29 +96,22 @@ $('#download').onclick=async()=>{try{let blob=await downloadFirmware(),url=URL.c
 $('#flash').onclick=async()=>{
  if(!buildReady||flashing)return;
  const board=$('#board').value;
- if(!Object.hasOwn(bootloader,board))return log('Board này cần công cụ nạp riêng');
+ if(uploadProtocol(board)==='download')return log(methodDescription(board));
  const port=usb.selected;
- if(!port)return log('Cần kết nối cổng USB trước khi nạp. Nhấn Cấp quyền cổng mới.');
- if(portBoardMismatch(port,board))return log('USB và board không khớp. Đã chặn nạp nhầm firmware.');
- if(!usb.ports.includes(port))return log('Cổng đã ngắt kết nối. Hãy quét lại.');
- if(!confirm('Nạp firmware lên '+boardNames[board]+' qua '+identifySerialPort(port).label+'? Chương trình hiện tại trên board sẽ bị thay thế.'))return;
+ if(!port)return log('Hãy cấp quyền cổng USB trước khi nạp.');
+ if(portBoardMismatch(port,board))return log('USB/board không khớp. Từ chối nạp firmware.');
+ if(!usb.ports.includes(port))return log('Cổng USB đã ngắt, hãy quét lại.');
+ if(!confirm('NẠP firmware '+boardNames[board]+' qua '+identifySerialPort(port).label+'? Dữ liệu chương trình hiện tại trên board sẽ bị thay thế.'))return;
  flashing=true;updateFlashAvailability();$('#usb-grant').disabled=true;$('#usb-scan').disabled=true;
- let flasher;
  try{
-  const hex=await(await downloadFirmware('hex')).text();
-  if(usb.selected!==port||!usb.ports.includes(port))throw Error('Cổng thay đổi hoặc bị rút trong lúc chuẩn bị nạp.');
-  serialPort=port;
-  flasher=new AvrFlasher(port,log);
-  await flasher.start(bootloader[board]);
-  await flasher.flash(hex,n=>progress('Đang nạp firmware qua USB',n));
-  progress('Đã gửi firmware qua USB',100);
-  log('Đã gửi xong firmware, vui lòng kiểm tra thiết bị chạy đúng.');
+  await uploadFirmware({board,port,fetchFirmware:async format=>{
+    if(usb.selected!==port||!usb.ports.includes(port))throw Error('USB bị rút/thay đổi trước khi nạp');
+    return downloadFirmware(format);
+  },log,progress:n=>progress('Đang nạp firmware '+n+'%',n)});
+  progress('Đã nạp firmware qua USB',100);log('Nạp thành công. Hãy kiểm tra thiết bị.');
  }catch(e){progress('Nạp USB lỗi',0);log('UPLOAD: '+e.message)}
  finally{
-  try{await flasher?.close()}catch{}
-  serialPort=null;flashing=false;
-  try{await usb.scan()}catch(e){log('USB: '+e.message)}
-  updateUsbUi(usb.snapshot());
+  serialPort=null;flashing=false;try{await usb.scan()}catch(e){log('USB: '+e.message)}updateUsbUi(usb.snapshot());
  }
 };
 function showAdmin(open){if(!admin)return;if(!open)ideController?.closeMonitor();$('#user-area').hidden=open;$('#admin-area').hidden=!open;$('#admin-nav').classList.toggle('selected',open);$('#mobile-admin').classList.toggle('active',open);window.scrollTo(0,0)}$('#admin-nav').onclick=()=>showAdmin(true);$('#mobile-admin').onclick=()=>showAdmin(true);$('#mobile-programs').onclick=()=>showAdmin(false);$('#mobile-settings').onclick=()=>showAdmin(false);
