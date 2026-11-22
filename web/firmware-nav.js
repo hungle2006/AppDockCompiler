@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const attach=()=>{const root=document.querySelector('#app-sidebar nav.nav');if(!root||root.querySelector('.appdock-firmware-nav'))return;
- const link=document.createElement('a');link.className='appdock-firmware-nav';link.href='/firmware';link.setAttribute('aria-label','Nạp firmware cho board Arduino và ESP');link.innerHTML='<span aria-hidden="true" class="appdock-firmware-nav-ico">⌘</span><span>Nạp firmware</span><span class="appdock-firmware-nav-tag">NEW</span>';root.appendChild(link)};
+ const link=document.createElement('a');link.className='appdock-firmware-nav';link.href='/firmware';link.setAttribute('aria-label','Nạp firmware cho board Arduino và ESP');link.innerHTML='<span aria-hidden="true" class="appdock-firmware-nav-ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/><path d="M9 1v3m6-3v3M9 20v3m6-3v3M20 9h3m-3 6h3M1 9h3m-3 6h3"/></svg></span><span>Nạp firmware</span><span class="appdock-firmware-nav-tag">LAB</span>';root.appendChild(link)};
  let raf=0;const schedule=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;attach()})};
  document.addEventListener('DOMContentLoaded',()=>{attach();new MutationObserver(schedule).observe(document.getElementById('app')||document.body,{childList:true,subtree:true})});
 })();
