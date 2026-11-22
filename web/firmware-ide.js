@@ -49,7 +49,7 @@ export function setupAdminIDE({api,usb,log,createPayload}){
   }catch(e){st('Verify thất bại',0);logIde('LỖI: '+e.message)}finally{working=false;buttons()}
  };
  async function getFirmware(format){if(!job)throw Error('Phải Verify thành công trước');const resp=await api('download',{query:{id:job.id,...(format?{format}:{})},raw:true});return resp.blob()}
- $('#ide-download').onclick=async()=>{try{const blob=await getFirmware();const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='appdock-'+(board.value||'firmware')+'.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);logIde('Đã tải firmware ZIP')}catch(e){logIde('DOWNLOAD: '+e.message)}};
+ $('#ide-download').onclick=async()=>{try{const pico=['pico','pico_w','pico2','pico2_w'].includes(board.value),blob=await getFirmware(pico?'uf2':undefined),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='appdock-'+(board.value||'firmware')+(pico?'.uf2':'.zip');link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);logIde(pico?'Đã tải UF2: chép vào ổ Pico ở BOOTSEL':'Đã tải firmware ZIP')}catch(e){logIde('DOWNLOAD: '+e.message)}};
  $('#ide-flash').onclick=async()=>{
   if(!job||job.board!==board.value)return logIde('Cần Verify lại khi đổi board');
   if(monitorMode)await closeMonitor();

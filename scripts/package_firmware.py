@@ -11,7 +11,7 @@ SOURCE = ROOT / 'build' / 'output'
 DEST = ROOT / 'build' / 'artifact'
 CHIP = {'esp32':'ESP32','esp32_s2':'ESP32-S2','esp32_s3':'ESP32-S3',
         'esp32_c3':'ESP32-C3','esp32_c6':'ESP32-C6',
-        'esp8266':'ESP8266','d1_mini':'ESP8266'}
+        'esp8266':'ESP8266','d1_mini':'ESP8266','nano_esp32':'ESP32-S3'}
 
 def _flash_pairs(args,files):
     images=[]
@@ -29,12 +29,42 @@ def _flash_pairs(args,files):
         else:index+=1
     return images,options
 
+UF2_BOARDS={'pico','pico_w','pico2','pico2_w'}
+AVR109_BOARDS={'leonardo','micro'}
+UPDI_BOARDS={'nano_every','uno_wifi_rev2'}
+DFU_BOARDS={'uno_r4_minima','uno_r4_wifi'}
+SAMD_BOARDS={'nano_33_iot','mkr_wifi_1010'}
+MBED_BOARDS={'nano_33_ble','nano_rp2040'}
+DUE_BOARDS={'due_programming','due_native'}
+CLASSIC_AVR={'uno','nano','nano_old','rf_nano','rf_nano_old','mega','pro_mini'}
+
+def build_non_esp_manifest(board,files):
+    types={'avr':('.hex',),'avr109':('.hex',),'jtag2updi':('.hex',),
+           'dfu':('.bin','.hex'),'bossac':('.bin',),'sam-ba':('.bin',),
+           'mbed':('.bin','.uf2','.hex'),'uf2':('.uf2',)}
+    if board in UF2_BOARDS: proto='uf2'
+    elif board in AVR109_BOARDS: proto='avr109'
+    elif board in UPDI_BOARDS: proto='jtag2updi'
+    elif board in DFU_BOARDS: proto='dfu'
+    elif board in SAMD_BOARDS: proto='bossac'
+    elif board in MBED_BOARDS: proto='mbed'
+    elif board in DUE_BOARDS: proto='sam-ba'
+    elif board in CLASSIC_AVR: proto='avr'
+    else: raise ValueError('Không có profile firmware cho '+board)
+    output=sorted(name for name,p in files.items() if p.is_file() and
+                  p.suffix.lower() in ('.hex','.bin','.uf2') and
+                  not any(marker in name for marker in ('with_bootloader','bootloader.bin','partitions.bin')))
+    good=[name for suffix in types[proto] for name in output if name.endswith(suffix)]
+    if not good: raise ValueError('Không có firmware '+str(types[proto])+' phù hợp '+board)
+    return {'schema':1,'board':board,'protocol':proto,'images':[],
+            'preferred':good[0],
+            'files':[{'name':name,'size':files[name].stat().st_size} for name in output]}
+
 def build_manifest(selection,files):
     board=selection['board']
     found={p.name:p for p in files if p.is_file()}
     if board not in CHIP:
-        proto='avr' if board in ('uno','nano','nano_old','rf_nano','rf_nano_old','mega','pro_mini') else 'download'
-        return {'schema':1,'board':board,'protocol':proto,'images':[]}
+        return build_non_esp_manifest(board,found)
     options={'flashMode':'keep','flashFreq':'keep','flashSize':'keep'}
     if board in ('esp8266','d1_mini'):
         images=[n for n in found if n.endswith('.bin') and not any(x in n for x in ('.merged.','.bootloader.','.partitions.','boot_app0'))]
@@ -82,6 +112,7 @@ def main():
             shutil.copy2(source,DEST/source.name)
     (DEST/'flash-manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
     (DEST/'build-info.json').write_text(json.dumps(selection,indent=2),encoding='utf-8')
-    if manifest['protocol']=='avr' and not list(DEST.glob('*.hex')):raise ValueError('Không có firmware HEX')
+    if manifest['protocol']!='esptool' and (not manifest.get('preferred') or not (DEST/manifest['preferred']).is_file()):
+        raise ValueError('Thiếu firmware chính dành cho '+selection['board'])
     print('Packed',selection['board'],manifest['protocol'],len(manifest['images']),'images')
 if __name__=='__main__':main()

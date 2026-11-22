@@ -1,4 +1,4 @@
-// Shared board catalog for AppDock UI, curated against Arduino CLI platform cores.
+// Generated from boards/boards.json; AppDockCompiler catalogue.
 export const BOARDS=[
   {
     "id": "uno",
@@ -154,6 +154,36 @@ export const BOARDS=[
     "id": "pico_w",
     "label": "Raspberry Pi Pico W",
     "family": "Raspberry Pi RP2040",
+    "upload": "download"
+  },
+  {
+    "id": "pico2",
+    "label": "Raspberry Pi Pico 2 (RP2350)",
+    "family": "Raspberry Pi RP2350",
+    "upload": "download"
+  },
+  {
+    "id": "pico2_w",
+    "label": "Raspberry Pi Pico 2 W (RP2350)",
+    "family": "Raspberry Pi RP2350",
+    "upload": "download"
+  },
+  {
+    "id": "due_programming",
+    "label": "Arduino Due · Programming Port",
+    "family": "Arduino SAM",
+    "upload": "download"
+  },
+  {
+    "id": "due_native",
+    "label": "Arduino Due · Native USB Port",
+    "family": "Arduino SAM",
+    "upload": "download"
+  },
+  {
+    "id": "nano_esp32",
+    "label": "Arduino Nano ESP32",
+    "family": "Arduino ESP32",
     "upload": "download"
   }
 ];

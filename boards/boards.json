@@ -258,5 +258,55 @@
     "additional_url": "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json",
     "pin_max": 28,
     "upload": "download"
+  },
+  {
+    "id": "pico2",
+    "label": "Raspberry Pi Pico 2 (RP2350)",
+    "family": "Raspberry Pi RP2350",
+    "fqbn": "rp2040:rp2040:rpipico2",
+    "core": "rp2040:rp2040",
+    "additional_url": "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json",
+    "pin_max": 28,
+    "upload": "download"
+  },
+  {
+    "id": "pico2_w",
+    "label": "Raspberry Pi Pico 2 W (RP2350)",
+    "family": "Raspberry Pi RP2350",
+    "fqbn": "rp2040:rp2040:rpipico2w",
+    "core": "rp2040:rp2040",
+    "additional_url": "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json",
+    "pin_max": 28,
+    "upload": "download"
+  },
+  {
+    "id": "due_programming",
+    "label": "Arduino Due · Programming Port",
+    "family": "Arduino SAM",
+    "fqbn": "arduino:sam:arduino_due_x_dbg",
+    "core": "arduino:sam",
+    "additional_url": null,
+    "pin_max": 53,
+    "upload": "download"
+  },
+  {
+    "id": "due_native",
+    "label": "Arduino Due · Native USB Port",
+    "family": "Arduino SAM",
+    "fqbn": "arduino:sam:arduino_due_x",
+    "core": "arduino:sam",
+    "additional_url": null,
+    "pin_max": 53,
+    "upload": "download"
+  },
+  {
+    "id": "nano_esp32",
+    "label": "Arduino Nano ESP32",
+    "family": "Arduino ESP32",
+    "fqbn": "arduino:esp32:nano_nora",
+    "core": "arduino:esp32",
+    "additional_url": null,
+    "pin_max": 21,
+    "upload": "download"
   }
 ]

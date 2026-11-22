@@ -112,3 +112,63 @@ jobs:
           path: build/artifact
           retention-days: 7
           if-no-files-found: error
+
+  compatibility-smoke:
+    name: Smoke ${{ matrix.board }}
+    if: github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {board: leonardo, core: arduino:avr, fqbn: 'arduino:avr:leonardo', url: ''}
+          - {board: nano_every, core: arduino:megaavr, fqbn: 'arduino:megaavr:nona4809', url: ''}
+          - {board: uno_r4_minima, core: arduino:renesas_uno, fqbn: 'arduino:renesas_uno:minima', url: ''}
+          - {board: pico2, core: rp2040:rp2040, fqbn: 'rp2040:rp2040:rpipico2', url: 'https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json'}
+          - {board: due_programming, core: arduino:sam, fqbn: 'arduino:sam:arduino_due_x_dbg', url: ''}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 32
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+      - name: Cache toolchains
+        uses: actions/cache@v4
+        with:
+          path: ~/.arduino15
+          key: smoke-v2-${{ runner.os }}-${{ matrix.core }}
+      - name: Compile and validate output
+        env:
+          BOARD: ${{ matrix.board }}
+          CORE: ${{ matrix.core }}
+          FQBN: ${{ matrix.fqbn }}
+          URL: ${{ matrix.url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$URL" ]]; then
+            arduino-cli core update-index --additional-urls "$URL"
+            arduino-cli core install "$CORE" --additional-urls "$URL"
+          else
+            arduino-cli core update-index
+            arduino-cli core install "$CORE"
+          fi
+          mkdir -p build/AppDockSketch build/output
+          printf '%s\n' '#include <Arduino.h>' 'void setup() { pinMode(13, OUTPUT); }' 'void loop() { digitalWrite(13, HIGH); delay(500); digitalWrite(13, LOW); delay(500); }' > build/AppDockSketch/AppDockSketch.ino
+          arduino-cli compile --fqbn "$FQBN" --output-dir build/output build/AppDockSketch
+          python3 - <<'PY'
+          import json, os
+          with open('build/selection.json','w') as f:
+              json.dump({'board':os.environ['BOARD'],'fqbn':os.environ['FQBN'],'core':os.environ['CORE']},f)
+          PY
+          python3 scripts/package_firmware.py
+          ls -lh build/artifact
+      - name: Save smoke firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: appdock-smoke-${{ matrix.board }}
+          path: build/artifact/
+          retention-days: 3
+          if-no-files-found: error

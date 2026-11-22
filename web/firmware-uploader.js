@@ -14,8 +14,14 @@ export function methodDescription(board){
  if(p==="stk500v1")return "Nạp trực tiếp bằng STK500v1 qua Web Serial (cần đúng bootloader).";
  if(p==="stk500v2")return "Nạp trực tiếp Arduino Mega2560 bằng STK500v2.";
  if(p==="esptool")return "Nạp trực tiếp ESP32/ESP8266 qua esptool-js, xác minh chip và địa chỉ flash.";
- if(["pico","pico_w"].includes(board))return "Pico: tải ZIP, giải nén .uf2; giữ BOOTSEL khi cắm USB rồi chép .uf2 vào ổ RPI-RP2.";
- if(["leonardo","micro"].includes(board))return "Leonardo/Micro dùng bootloader AVR109 và cổng USB mới sau reset; hãy dùng Arduino IDE.";
+ if(["pico","pico_w","pico2","pico2_w"].includes(board))return "Biên dịch và tải UF2; giữ BOOTSEL khi cắm Pico vào USB, sau đó sao chép UF2 vào ổ RPI-RP2/RP2350. Không dùng Web Serial để nạp.";
+ if(["leonardo","micro"].includes(board))return "Biên dịch HEX; nạp bằng avrdude AVR109. Bootloader có thể đổi cổng USB sau reset 1200 baud.";
+ if(["nano_every","uno_wifi_rev2"].includes(board))return "Đã biên dịch HEX; dùng avrdude JTAG2UPDI (không dùng STK500v1).";
+ if(["uno_r4_minima","uno_r4_wifi"].includes(board))return "Đã biên dịch BIN/HEX; nạp bằng công cụ DFU tương ứng Arduino UNO R4.";
+ if(["nano_33_iot","mkr_wifi_1010","nano_33_ble"].includes(board))return "Đã biên dịch BIN; sử dụng công cụ BOSSA và bootloader của board.";
+ if(board==="nano_rp2040")return "Đã biên dịch cho Nano RP2040 Connect; dùng công cụ upload Arduino Mbed hoặc UF2 khi có.";
+ if(["due_programming","due_native"].includes(board))return "Đã biên dịch BIN cho Arduino Due; nạp bằng bossac/SAM-BA đúng loại cổng.";
+ if(board==="nano_esp32")return "Arduino Nano ESP32: tải gói firmware, nạp bằng công cụ Arduino tương thích; chưa bật Upload Web Serial.";
  return "Board này có thể biên dịch và tải firmware; dùng công cụ nạp phù hợp của nhà sản xuất.";
 }
 export async function uploadFirmware({board,port,fetchFirmware,log=()=>{},progress=()=>{}}){
