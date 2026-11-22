@@ -1,0 +1,16 @@
+{
+  "name": "appdock-compiler",
+  "version": "4.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:web": "esbuild web/vendor-entry.js --bundle --format=esm --platform=browser --target=es2022 --minify --outfile=public/firmware-vendor.js",
+    "test:flash": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.0.2",
+    "esptool-js": "0.7.1",
+    "fflate": "0.8.2",
+    "esbuild": "0.25.12"
+  }
+}
