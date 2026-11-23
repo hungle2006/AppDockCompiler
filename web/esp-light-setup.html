@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#12233a">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Kết nối ESP Light · AppDock</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f5fc;color:#192c46;font:16px/1.6 system-ui,sans-serif}header{background:#12233a;color:#fff;padding:20px max(20px,calc((100% - 960px)/2))}header a{color:#d7e4ff;text-decoration:none}main{max-width:960px;margin:32px auto;padding:0 20px 40px}.eyebrow{font-size:14px;font-weight:650;color:#4261a2}h1{font-size:clamp(26px,5vw,36px);line-height:1.2;margin:8px 0 12px}h2{font-size:20px;margin:0 0 18px}p{color:#536680}.intro{max-width:740px}.grid{display:grid;grid-template-columns:1.2fr 1fr;gap:20px;margin-top:28px}.panel{background:#fff;border:1px solid #dce4f1;border-radius:18px;padding:24px;min-width:0}label{display:block;font-size:14px;font-weight:650;margin-bottom:18px}input{width:100%;font:inherit;color:inherit;border:1px solid #ccd7e8;background:#fff;border-radius:10px;padding:12px;margin-top:7px;min-height:46px}input[type=file]{font-size:14px}small{display:block;font-size:14px;font-weight:400;color:#586c86;margin-top:5px}button,.link{font:inherit;font-weight:650;border-radius:10px;padding:11px 16px;min-height:46px;cursor:pointer;border:1px solid #cdd8eb;background:#fff;color:#294a8c;text-decoration:none;display:inline-block}button.primary{background:#305ec4;border-color:#305ec4;color:#fff}button:disabled{opacity:.5;cursor:not-allowed}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #99b7ff;outline-offset:3px}.actions{display:flex;gap:10px;flex-wrap:wrap}.note{padding:14px 16px;border-radius:10px;background:#edf3ff;color:#304e80;font-size:14px}.status{padding:12px 16px;border-radius:10px;background:#edf3ff;margin:16px 0;font-weight:600;overflow-wrap:anywhere}.status.error{background:#fff0f0;color:#9e3333}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;background:#14243c;color:#dbe8ff;padding:16px;border-radius:12px;font:13px/1.7 ui-monospace,monospace}li{margin-bottom:12px;color:#526680}footer{font-size:14px;margin-top:24px;color:#526680}.full{grid-column:1/-1}@media(max-width:740px){.grid{grid-template-columns:1fr}.panel{padding:20px}}
+</style>
+<script defer src="/esp-light-setup.js"></script>
+</head>
+<body>
+<header><a href="/firmware">AppDock / Nạp firmware</a></header>
+<main>
+<div class="eyebrow">ESP32 + SIM800L</div><h1>Kết nối thiết bị với ESP Light</h1>
+<p class="intro">Nạp firmware trước, sau đó ghép nối qua USB. Thông tin Wi-Fi, tài khoản thiết bị và số điện thoại chỉ được gửi vào ESP32; trang này không tải chúng lên máy chủ.</p>
+<div class="note">Trong ESP Light Control, tạo thiết bị với <strong>GPIO27 · HIGH = Bật</strong>. Hai relay GPIO27/26 chạy cùng một lệnh. Cảnh báo đã chốt luôn giữ cả hai ở LOW.</div>
+<div class="grid">
+<section class="panel">
+<h2>Thông tin kết nối</h2>
+<form id="setup-form" autocomplete="off">
+<label>JSON ghép nối từ ESP Light<input type="file" id="pair-file" accept=".json,application/json" required><small id="pair-info">Chọn file JSON tải lúc thêm thiết bị.</small></label>
+<label>Tên Wi-Fi 2,4 GHz<input id="ssid" maxlength="32" required autocomplete="off"></label>
+<label>Mật khẩu Wi-Fi<input id="wifi-password" type="password" maxlength="64" autocomplete="new-password"><small>Để trống nếu mạng không có mật khẩu.</small></label>
+<label>Số điện thoại nhận cảnh báo<input id="phone" type="tel" placeholder="+84901234567" maxlength="16" pattern="\+[0-9]{8,15}" required autocomplete="off"><small>Nhập mã quốc gia, ví dụ đổi 090… thành +8490…</small></label>
+<button class="primary" id="send" type="submit" disabled>Gửi cấu hình vào ESP32</button>
+</form>
+</section>
+<section class="panel">
+<h2>Kết nối USB</h2>
+<ol>
+<li>Dùng Chrome hoặc Edge trên máy tính. Cắm ESP32 bằng cáp USB dữ liệu.</li>
+<li>Đóng Serial Monitor/Arduino IDE đang giữ cổng, rồi chọn cổng của ESP32.</li>
+<li>Gửi cấu hình và chờ thông báo lưu thành công. Sau đó kiểm tra cảm biến bình thường, nhấn EN/RESET trên ESP32.</li>
+</ol>
+<div class="actions"><button type="button" id="connect">Chọn cổng ESP32</button><button type="button" id="disconnect" disabled>Ngắt kết nối</button></div>
+<div id="status" class="status" role="status" aria-live="polite">Chưa kết nối USB.</div>
+<pre id="console" aria-label="Phản hồi từ thiết bị">Nhật ký không hiển thị thông tin ghép nối.</pre>
+</section>
+<section class="panel full">
+<h2>Sau khi kết nối</h2>
+<p>App hiển thị trạng thái relay, IP, tín hiệu Wi-Fi và lần kết nối. ADC, trạng thái chốt và cuộc gọi hiện xem qua Serial. Đã chốt thì lệnh bật từ app không xóa cảnh báo; khởi động lại sẽ xóa chốt như mã gốc.</p>
+<div class="actions"><a class="link" href="https://esp-light-control.vercel.app/" target="_blank" rel="noopener">Mở ESP Light Control</a><a class="link" href="/firmware">Về thư viện firmware</a><a class="link" href="/esp-light-latch-source.zip" download>Tải mã nguồn và hướng dẫn</a></div>
+</section>
+</div>
+<footer>Không lưu JSON chứa mật khẩu trên máy dùng chung. Cấu hình lưu trên NVS của ESP32, chưa bật mã hóa flash. Chưa kiểm chứng phần cứng SIM800L/relay của bạn.</footer>
+</main>
+</body></html>
