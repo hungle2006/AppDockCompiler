@@ -1,0 +1,39 @@
+{
+  "id": "esp-light-latch-sim800l",
+  "title": "ESP Light · Cảm biến chốt & SIM800L",
+  "description": "ESP32 DevKit: cảm biến GPIO34/32, LED2/4, hai relay27/26, gọi SIM800L16/17 một lần 25 giây. Kết nối ESP Light Control qua Firestore; cấu hình Wi-Fi và ghép nối riêng qua USB sau khi nạp.",
+  "version": "1.0.0",
+  "published": true,
+  "boards": [
+    "esp32"
+  ],
+  "libraries": [
+    "ArduinoJson"
+  ],
+  "fields": [
+    {
+      "key": "CALL_DURATION_MS",
+      "label": "Thời gian tối đa mỗi lần gọi (ms)",
+      "type": "integer",
+      "min": 1000,
+      "max": 60000,
+      "default": 25000
+    },
+    {
+      "key": "CLOUD_POLL_MS",
+      "label": "Chu kỳ đọc lệnh Firestore (ms)",
+      "type": "integer",
+      "min": 15000,
+      "max": 60000,
+      "default": 15000
+    },
+    {
+      "key": "SENSOR_FILTER_MS",
+      "label": "Lọc nhiễu tín hiệu LOW (ms)",
+      "type": "integer",
+      "min": 10,
+      "max": 1000,
+      "default": 50
+    }
+  ]
+}
