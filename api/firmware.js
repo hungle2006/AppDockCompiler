@@ -46,13 +46,32 @@ async function commitProject(input,branch='main'){
  await github('git/refs/heads/'+branch,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({sha:commit.sha,force:false})});
  return {id:m.id,commit:commit.sha,manifest:m};
 }
+async function removeProject(id){
+ if(!SLUG.test(id))throw Error('Mã chương trình không hợp lệ');
+ const manifest=await project(id);
+ const entries=await github('contents/projects/'+id+'?ref=main');
+ if(!Array.isArray(entries)||entries.some(x=>x.type!=='file')||!entries.some(x=>x.name==='manifest.json')||!entries.some(x=>x.name==='AppDockSketch.ino'))throw Error('Cấu trúc chương trình không hỗ trợ xóa an toàn');
+ const ref=await github('git/ref/heads/main'),parent=ref.object.sha,base=await github('git/commits/'+parent);
+ const tree=await github('git/trees',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({base_tree:base.tree.sha,tree:entries.map(x=>({path:x.path,mode:'100644',type:'blob',sha:null}))})});
+ const commit=await github('git/commits',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Remove AppDock firmware '+id,tree:tree.sha,parents:[parent]})});
+ await github('git/refs/heads/main',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({sha:commit.sha,force:false})});
+ return {id,title:manifest.title,commit:commit.sha};
+}
 async function publish(input){const result=await commitProject(input,'main');return {id:result.id,commit:result.commit}}
 export default async function handler(req,res){res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');const action=String(req.query.action||'list');try{
  if(action==='health'&&req.method==='GET')return res.json({ok:true,compilerReady:!!process.env.GITHUB_ACTIONS_TOKEN,databaseReady:!!process.env.DATABASE_URL});
  if(action==='session'&&req.method==='GET'){identity(req,res);return res.json({ok:true,admin:await admin(req)})}
- if(action==='list'&&req.method==='GET'){const entries=await github('contents/projects?ref=main');const list=await Promise.all((Array.isArray(entries)?entries:[]).filter(x=>x.type==='dir'&&SLUG.test(x.name)).slice(0,80).map(async x=>{try{const m=await project(x.name);return m.published?m:null}catch{return null}}));return res.json({ok:true,projects:list.filter(Boolean)})}
+ if((action==='list'||action==='manage')&&req.method==='GET'){if(action==='manage'&&!await admin(req))return problem(res,403,'Chỉ quản trị viên được xem bản nháp');const entries=await github('contents/projects?ref=main');const list=await Promise.all((Array.isArray(entries)?entries:[]).filter(x=>x.type==='dir'&&SLUG.test(x.name)).slice(0,80).map(async x=>{try{const m=await project(x.name);return action==='manage'||m.published?m:null}catch{return null}}));return res.json({ok:true,projects:list.filter(Boolean)})}
  if(action==='source'&&req.method==='GET'){if(!await admin(req))return problem(res,403,'Chỉ quản trị viên được xem mã nguồn');const id=String(req.query.id||'');return res.json({ok:true,manifest:await project(id),code:await contents('projects/'+id+'/AppDockSketch.ino')})}
- if(action==='publish'&&req.method==='POST'){if(!sameOrigin(req))return problem(res,403,'Yêu cầu không cùng nguồn');if(!await admin(req))return problem(res,403,'Cần đăng nhập Google với quyền quản trị AppDock');const input=typeof req.body==='string'?JSON.parse(req.body):req.body;return res.json({ok:true,...await publish(input)})}
+ if(action==='delete'&&req.method==='POST'){
+ if(!sameOrigin(req))return problem(res,403,'Yêu cầu không cùng nguồn');
+ if(!await admin(req))return problem(res,403,'Chỉ quản trị viên được xóa chương trình');
+ const input=typeof req.body==='string'?JSON.parse(req.body):req.body||{};
+ const id=String(input.id||''),confirmId=String(input.confirmId||'');
+ if(!SLUG.test(id)||confirmId!==id)return problem(res,400,'Nhập đúng mã chương trình để xác nhận xóa');
+ return res.json({ok:true,...await removeProject(id)});
+}
+if(action==='publish'&&req.method==='POST'){if(!sameOrigin(req))return problem(res,403,'Yêu cầu không cùng nguồn');if(!await admin(req))return problem(res,403,'Cần đăng nhập Google với quyền quản trị AppDock');const input=typeof req.body==='string'?JSON.parse(req.body):req.body;return res.json({ok:true,...await publish(input)})}
  if(action==='verify'&&req.method==='POST'){
   if(!sameOrigin(req))return problem(res,403,'Yêu cầu không cùng nguồn');
   if(!await admin(req))return problem(res,403,'Chỉ quản trị viên mới được Verify mã nguồn');
