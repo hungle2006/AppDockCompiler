@@ -1,6 +1,6 @@
 # ESP Light — Cảm biến chốt + SIM800L
 
-ESP32 DevKit (ESP32 gốc hai nhân), Arduino core 3.x, ArduinoJson 7.x.
+ESP32 DevKit (ESP32 gốc hai nhân), Đã biên dịch với ESP32 core 4.0.0 và ArduinoJson 7.4.3.
 App: https://esp-light-control.vercel.app/
 Nạp: https://anh-app-hub.vercel.app/firmware
 Cấu hình USB: https://anh-app-hub.vercel.app/esp-light-setup.html
@@ -63,3 +63,9 @@ Mặc định mỗi 15 giây một đọc + một ghi: khoảng 5760 đọc và 
 Biên dịch không thay thế kiểm tra mạch thật; chưa kiểm chứng ESP32, SIM và relay của bạn.
 Tham khảo: https://firebase.google.com/docs/firestore/use-rest-api
 và https://firebase.google.com/docs/reference/rest/auth.
+
+## Xác minh bản phát hành
+
+Biên dịch ESP32 thành công: 1.163.521 byte flash / 1.310.720 (88%); RAM tĩnh 51.832 / 327.680 byte (15%).
+Kiểm thử C++ trên host với các hàm thực tế: lọc nhiễu, chốt, ghi đè lệnh app, một ATD, ATH 25 giây, tràn millis, lệnh tắt cloud đều qua.
+Trang cấu hình USB đã kiểm tra giao diện; chưa thử USB phần cứng, đăng nhập tài khoản thiết bị thật, đồng bộ Firestore thật hoặc cuộc gọi SIM800L.
