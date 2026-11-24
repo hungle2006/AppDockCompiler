@@ -758,7 +758,7 @@ void loadConfig() {
     Serial.println("PAIRING MISMATCH: provision again using ESP Light Control (esplight-a94ff).");
   }
   prefs.end();
-  if (config.ready && (config.ssid.isEmpty() || !validPhone(config.phone) || !safeSegment(config.ownerUid) || !safeSegment(config.deviceId) || config.email.indexOf('@') < 1 || config.password.length() < 6)) {
+  if (config.ready && (config.ssid.isEmpty() || (!config.phone.isEmpty() && !validPhone(config.phone)) || !safeSegment(config.ownerUid) || !safeSegment(config.deviceId) || config.email.indexOf('@') < 1 || config.password.length() < 6)) {
     config.ready = false;
     Serial.println("USB CONFIG REQUIRED: incomplete configuration.");
   }
@@ -783,13 +783,13 @@ void provision(const String &line) {
   String device = pair["deviceId"] | "";
   String email = pair["deviceEmail"] | "";
   String password = pair["devicePassword"] | "";
-  if (ssid.isEmpty() || ssid.length() > 32 || wifi.length() > 64 || !validPhone(phone)
+  if (ssid.isEmpty() || ssid.length() > 32 || wifi.length() > 64 || (!phone.isEmpty() && !validPhone(phone))
       || api.length() < 20 || api.length() > 128 || !safeSegment(project) || !safeSegment(owner)
       || !safeSegment(device) || email.indexOf('@') < 1 || email.length() > 254
       || password.length() < 6 || password.length() > 128
       || !pair["gpio"].is<int>() || pair["gpio"].as<int>() != RELAY_1
       || !pair["activeLow"].is<bool>() || pair["activeLow"].as<bool>()) {
-    Serial.println("CONFIG REJECTED: check pairing, WiFi, +country phone; GPIO27 and HIGH=On required.");
+    Serial.println("CONFIG REJECTED: check pairing, WiFi, optional +country phone; GPIO27 and HIGH=On required.");
     return;
   }
   Preferences prefs;
@@ -800,7 +800,8 @@ void provision(const String &line) {
   bool ok = prefs.putString("ssid", ssid) > 0;
   prefs.putString("wifi", wifi); // Empty password is valid for an open AP.
   ok = (prefs.getString("wifi") == wifi) && ok;
-  ok = (prefs.putString("phone", phone) > 0) && ok;
+  prefs.putString("phone", phone);
+  ok = (prefs.getString("phone", "__missing__") == phone) && ok;
   ok = (prefs.putString("api", api) > 0) && ok;
   ok = (prefs.putString("project", project) > 0) && ok;
   ok = (prefs.putString("owner", owner) > 0) && ok;
@@ -953,7 +954,7 @@ void serviceSensor(uint32_t now) {
   }
   if (uint32_t(now - lastSensorLog) >= 1000) {
     lastSensorLog = now;
-    Serial.printf("ADC34=%d | D32=%d | %s | MONITOR ONLY: relay contacts unverified\n", analogRead(SENSOR_ANALOG), high,
+    Serial.printf("ADC34=%d | D32=%d | INPUT=%s | %s | MONITOR ONLY: relay contacts unverified\n", analogRead(SENSOR_ANALOG), high, high ? "HIGH-ALARM" : "LOW-NORMAL-INPUT",
                   alarm ? "ALARM-LATCHED" : "NO SENSOR ALARM");
   }
 }
@@ -1077,16 +1078,23 @@ void cloudTask(void *) {
   WiFi.setAutoReconnect(true);
   WiFi.begin(config.ssid.c_str(), config.wifiPassword.c_str());
   configTime(0, 0, "time.google.com", "pool.ntp.org");
-  uint32_t lastWifi = millis(), lastAttempt = 0, lastRevision = UINT32_MAX;
+  Serial.println("WiFi connecting...");
+  uint32_t lastWifi = millis(), lastAttempt = 0, lastRevision = UINT32_MAX, lastNtpLog = millis();
   uint32_t retryInterval = CLOUD_POLL_MS;
-  bool first = true, cloudOnline = false;
+  bool first = true, cloudOnline = false, wifiOnline = false;
   for (;;) {
     if (WiFi.status() != WL_CONNECTED) {
-      if (cloudOnline) { Serial.println("Cloud offline: Wi-Fi disconnected."); cloudOnline = false; first = true; }
-      if (uint32_t(millis() - lastWifi) >= 20000) { WiFi.reconnect(); lastWifi = millis(); }
+      if (wifiOnline) { wifiOnline = false; Serial.println("WiFi disconnected."); }
+      if (cloudOnline) { Serial.println("Cloud offline: Wi-Fi disconnected."); cloudOnline = false; }
+      first = true;
+      if (uint32_t(millis() - lastWifi) >= 20000) { Serial.println("WiFi not connected; retrying."); WiFi.reconnect(); lastWifi = millis(); }
       vTaskDelay(pdMS_TO_TICKS(500)); continue;
     }
-    if (time(nullptr) < 1700000000) { vTaskDelay(pdMS_TO_TICKS(500)); continue; }
+    if (!wifiOnline) { wifiOnline = true; Serial.print("WiFi connected. IP: "); Serial.println(WiFi.localIP()); Serial.printf("WiFi RSSI: %d dBm\n", WiFi.RSSI()); }
+    if (time(nullptr) < 1700000000) {
+      if (uint32_t(millis() - lastNtpLog) >= 15000) { Serial.println("WiFi connected; waiting for NTP time before secure Firebase connection."); lastNtpLog = millis(); }
+      vTaskDelay(pdMS_TO_TICKS(500)); continue;
+    }
     const SharedState current = snapshot();
     const bool alarmChanged = current.revision != lastRevision;
     if (first || uint32_t(millis() - lastAttempt) >= retryInterval || (alarmChanged && uint32_t(millis() - lastAttempt) >= 2000)) {
@@ -1123,7 +1131,7 @@ void setup() {
   lastAlarmSaveAttempt = millis() - 5000;
   serviceSensor(millis());
   loadConfig();
-  Serial.println("ESP LIGHT MONITOR 1.1.3-DRAFT | GPIO32 HIGH=ALARM | BENCH ONLY | NOT A PROTECTIVE DEVICE");
+  Serial.println("ESP LIGHT MONITOR 1.1.4-DRAFT | GPIO32 HIGH=ALARM | BENCH ONLY | NOT A PROTECTIVE DEVICE");
   Serial.println("USB 115200 + newline: STATUS or config JSON. No remote alarm reset.");
   if (xTaskCreatePinnedToCore(cloudTask, "esplight-cloud", 16384, nullptr, 1, nullptr, 0) != pdPASS)
     Serial.println("Cloud task failed to start. Local alarm remains active.");
