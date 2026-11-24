@@ -1,0 +1,62 @@
+// DRAFT ONLY. Review against deployed rules and test in Emulator before publishing.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{ownerUid}/devices/{deviceId} {
+      function authenticated() { return request.auth != null; }
+      function owner() { return authenticated() && request.auth.uid == ownerUid; }
+      function device() { return authenticated() && request.auth.uid == resource.data.deviceUid; }
+      function monitorBefore() { return resource.data.get('monitorOnly', false) == true; }
+      function ownerUpdate() {
+        return request.resource.data.deviceUid == resource.data.deviceUid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name','room','gpio','activeLow','desiredOn','updatedAt'])
+          && (!monitorBefore() || (request.resource.data.desiredOn == false
+             && request.resource.data.gpio == resource.data.gpio
+             && request.resource.data.activeLow == resource.data.activeLow));
+      }
+      function legacyDeviceUpdate() {
+        return !monitorBefore()
+          && request.resource.data.deviceUid == resource.data.deviceUid
+          && request.resource.data.desiredOn is bool
+          && request.resource.data.reportedOn is bool
+          && request.resource.data.lastSeenAt is timestamp
+          && request.resource.data.rssi is int
+          && request.resource.data.ipAddress is string
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['desiredOn','reportedOn','lastSeenAt','rssi','ipAddress']);
+      }
+      function monitorUpdate() {
+        let d = request.resource.data;
+        return d.deviceUid == resource.data.deviceUid
+          && d.gpio == 27 && d.activeLow == false
+          && d.monitorOnly == true && d.outputVerified == false
+          && d.desiredOn == false
+          && d.alarmLatched is bool && d.sensorLow is bool
+          && d.latchStorageFault is bool
+          && (!resource.data.get('alarmLatched', false) || d.alarmLatched)
+          && (!d.sensorLow || d.alarmLatched)
+          && (!d.latchStorageFault || d.alarmLatched)
+          && d.lastSeenAt == request.time && d.rssi is int && d.ipAddress is string
+          && d.diff(resource.data).affectedKeys().hasOnly(
+             ['monitorOnly','alarmLatched','sensorLow','latchStorageFault','outputVerified',
+              'desiredOn','lastSeenAt','rssi','ipAddress']);
+      }
+      allow get: if owner() || device();
+      allow list: if owner();
+      allow create: if owner()
+        && request.resource.data.name is string
+        && request.resource.data.gpio is int
+        && request.resource.data.deviceUid is string
+        && request.resource.data.desiredOn == false
+        && request.resource.data.reportedOn == false
+        && !request.resource.data.keys().hasAny(['monitorOnly','alarmLatched','sensorLow','latchStorageFault','outputVerified']);
+      allow update: if (owner() && ownerUpdate()) || (device() && (legacyDeviceUpdate() || monitorUpdate()));
+      allow delete: if owner();
+    }
+    match /users/{ownerUid}/events/{eventId} {
+      allow read, create: if request.auth != null && request.auth.uid == ownerUid;
+      allow update, delete: if false;
+    }
+  }
+}
