@@ -931,6 +931,7 @@ void serviceSensor(uint32_t now) {
   state.reportedOn = false;
   const bool alarm = state.activated;
   portEXIT_CRITICAL(&stateMux);
+  digitalWrite(RELAY_1, LOW); digitalWrite(RELAY_2, LOW); // Supplemental off command only, never proof of isolation.
   digitalWrite(LED_ACTIVE, alarm ? HIGH : LOW);
   digitalWrite(LED_NORMAL, alarm ? LOW : HIGH);
   if (newLatch) {
@@ -1102,9 +1103,11 @@ void cloudTask(void *) {
 }
 
 void setup() {
+  // Bench only, with relay control wiring physically disconnected and mains isolated.
+  // User confirms LOW is the off command. Never energize/rearm these outputs.
+  digitalWrite(RELAY_1, LOW); digitalWrite(RELAY_2, LOW);
+  pinMode(RELAY_1, OUTPUT); pinMode(RELAY_2, OUTPUT);
   Serial.begin(115200);
-  // No output drive. Physically disconnect relay wires before bench testing.
-  pinMode(RELAY_1, INPUT); pinMode(RELAY_2, INPUT);
   pinMode(LED_ACTIVE, OUTPUT); pinMode(LED_NORMAL, OUTPUT);
   digitalWrite(LED_ACTIVE, LOW); digitalWrite(LED_NORMAL, LOW); // No normal indication before sampling.
   pinMode(SENSOR_ANALOG, INPUT);
@@ -1118,7 +1121,7 @@ void setup() {
   lastAlarmSaveAttempt = millis() - 5000;
   serviceSensor(millis());
   loadConfig();
-  Serial.println("ESP LIGHT MONITOR 1.1.1-DRAFT | BENCH ONLY | NOT A PROTECTIVE DEVICE");
+  Serial.println("ESP LIGHT MONITOR 1.1.2-DRAFT | BENCH ONLY | NOT A PROTECTIVE DEVICE");
   Serial.println("USB 115200 + newline: STATUS or config JSON. No remote alarm reset.");
   if (xTaskCreatePinnedToCore(cloudTask, "esplight-cloud", 16384, nullptr, 1, nullptr, 0) != pdPASS)
     Serial.println("Cloud task failed to start. Local alarm remains active.");
