@@ -1,5 +1,5 @@
 // ESP Light Control + latched LOW sensor + SIM800L, ESP32 DevKit only.
-// Credentials are provisioned through USB Serial, never through public builds.
+// Firebase project preconfigured; private device credentials are provisioned through USB Serial only.
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -8,6 +8,10 @@
 #include <Preferences.h>
 #include <time.h>
 #include "generated_config.h"
+
+// Public Firebase web configuration; never embed device passwords or service-account keys.
+static const char FIREBASE_PROJECT_ID[] = "esplight-a94ff";
+static const char FIREBASE_API_KEY[] = "AIzaSyArUn4Dk08qPkucW6MEUf05EwpV5fHFexI";
 
 #define SENSOR_ANALOG 34
 #define SENSOR_DIGITAL 32
@@ -732,13 +736,20 @@ void loadConfig() {
   config.ssid = prefs.getString("ssid", "");
   config.wifiPassword = prefs.getString("wifi", "");
   config.phone = prefs.getString("phone", "");
-  config.apiKey = prefs.getString("api", "");
-  config.projectId = prefs.getString("project", "");
+  const String savedApi = prefs.getString("api", "");
+  const String savedProject = prefs.getString("project", "");
+  config.apiKey = FIREBASE_API_KEY;
+  config.projectId = FIREBASE_PROJECT_ID;
   config.ownerUid = prefs.getString("owner", "");
   config.deviceId = prefs.getString("device", "");
   config.email = prefs.getString("email", "");
   config.password = prefs.getString("password", "");
   config.ready = prefs.getBool("ready", false);
+  if (config.ready && ((!savedApi.isEmpty() && savedApi != FIREBASE_API_KEY) ||
+                       (!savedProject.isEmpty() && savedProject != FIREBASE_PROJECT_ID))) {
+    config.ready = false;
+    Serial.println("PAIRING MISMATCH: provision again using ESP Light Control (esplight-a94ff).");
+  }
   prefs.end();
 }
 
@@ -750,8 +761,12 @@ void provision(const String &line) {
   String ssid = doc["wifiSsid"] | "";
   String wifi = doc["wifiPassword"] | "";
   String phone = doc["phoneNumber"] | "";
-  String api = pair["apiKey"] | "";
-  String project = pair["projectId"] | "";
+  String api = pair["apiKey"] | FIREBASE_API_KEY;
+  String project = pair["projectId"] | FIREBASE_PROJECT_ID;
+  if (api != FIREBASE_API_KEY || project != FIREBASE_PROJECT_ID) {
+    Serial.println("CONFIG REJECTED: pairing must use Firebase project esplight-a94ff.");
+    return;
+  }
   String owner = pair["ownerUid"] | "";
   String device = pair["deviceId"] | "";
   String email = pair["deviceEmail"] | "";
@@ -1002,9 +1017,10 @@ void cloudTask(void *) {
   configTime(0, 0, "time.google.com", "pool.ntp.org");
   uint32_t lastWifi = millis(), lastAttempt = 0, lastRevision = UINT32_MAX;
   uint32_t retryInterval = CLOUD_POLL_MS;
-  bool first = true;
+  bool first = true, cloudOnline = false;
   for (;;) {
     if (WiFi.status() != WL_CONNECTED) {
+      if (cloudOnline) { Serial.println("Cloud offline: Wi-Fi disconnected."); cloudOnline = false; first = true; }
       if (uint32_t(millis() - lastWifi) >= 20000) { WiFi.reconnect(); lastWifi = millis(); }
       vTaskDelay(pdMS_TO_TICKS(500)); continue;
     }
@@ -1015,6 +1031,9 @@ void cloudTask(void *) {
       first = false;
       const uint32_t attemptedRevision = current.revision;
       const bool ok = cloudSync();
+      if (ok && !cloudOnline) Serial.println("Firebase connected: Firestore heartbeat confirmed (esplight-a94ff).");
+      else if (!ok && cloudOnline) Serial.println("Cloud offline: Firestore sync failed; retrying.");
+      cloudOnline = ok;
       lastAttempt = millis();
       lastRevision = attemptedRevision;
       retryInterval = ok ? CLOUD_POLL_MS : min(uint32_t(60000), max(uint32_t(15000), retryInterval * 2));
@@ -1035,7 +1054,7 @@ void setup() {
   Serial2.begin(9600, SERIAL_8N1, SIM_RX, SIM_TX);
   serialLine.reserve(4096); simLine.reserve(200);
   loadConfig();
-  Serial.println("ESP LIGHT LATCH + SIM800L 1.0.0 | sensor/call timing independent of WiFi.");
+  Serial.println("ESP LIGHT LATCH + SIM800L 1.0.1 | Firebase esplight-a94ff | sensor/call timing independent of WiFi.");
   Serial.println("USB 115200 + newline: STATUS or config JSON. No remote alarm reset.");
   if (xTaskCreatePinnedToCore(cloudTask, "esplight-cloud", 16384, nullptr, 1, nullptr, 0) != pdPASS)
     Serial.println("Cloud task failed to start. Local alarm remains active.");
