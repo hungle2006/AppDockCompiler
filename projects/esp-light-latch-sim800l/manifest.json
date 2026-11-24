@@ -1,8 +1,8 @@
 {
   "id": "esp-light-latch-sim800l",
   "title": "ESP Light · Cảm biến chốt & SIM800L",
-  "description": "BẢN NHÁP CHỈ GIÁM SÁT, CHƯA PHÁT HÀNH. Theo code gốc: LOW chốt cảnh báo ngay khi đọc, LED2/4, SIM800L gọi một lần/khởi động, NVS lưu chốt và Firebase báo sự cố. Không kích GPIO27/26; thử điện áp thấp, tháo dây relay và cách ly 220V. Chưa triển khai rules/UI Firebase. Không thay thế RCBO/RCCB.",
-  "version": "1.1.1-draft",
+  "description": "BẢN NHÁP CHƯA PHÁT HÀNH · chỉ thử điện áp thấp, tháo dây relay, cách ly điện lưới. GPIO27/26 luôn ra lệnh LOW (ngắt theo xác nhận của người dùng); không tự đóng lại, không bật từ Firebase. GPIO32 LOW chốt cảnh báo, LED2/4 và SIM800L; lưu NVS. Không xác nhận ngắt điện thật, không thay thế RCBO/RCCB. Cần kiểm thử và xác minh phần cứng.",
+  "version": "1.1.2-draft",
   "published": false,
   "boards": [
     "esp32"
