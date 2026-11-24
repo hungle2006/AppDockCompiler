@@ -696,8 +696,10 @@ struct DeviceConfig {
 
 struct SharedState {
   bool activated = false;
-  bool desiredOn = true; // Original startup HIGH until the first cloud command.
-  bool reportedOn = true;
+  bool desiredOn = false; // Monitor-only: never energize an output.
+  bool reportedOn = false; // Logical command only; NOT physical contact feedback.
+  bool sensorLow = false;
+  bool latchStorageFault = false;
   uint32_t revision = 0;
 } state;
 portMUX_TYPE stateMux = portMUX_INITIALIZER_UNLOCKED;
@@ -808,8 +810,8 @@ void readConsole() {
       if (serialOverflow) Serial.println("CONFIG REJECTED: line exceeds 4096 bytes.");
       else if (serialLine == "STATUS") {
         SharedState s = snapshot();
-        Serial.printf("latched=%d relayHigh=%d SIMready=%d registered=%d WiFi=%d provisioned=%d\n",
-                      s.activated, s.reportedOn, simReady, simRegistered, WiFi.status() == WL_CONNECTED, config.ready);
+        Serial.printf("latched=%d sensorLow=%d outputVerified=0 storageFault=%d SIMready=%d registered=%d WiFi=%d provisioned=%d\n",
+                      s.activated, s.sensorLow, s.latchStorageFault, simReady, simRegistered, WiFi.status() == WL_CONNECTED, config.ready);
       } else if (serialLine.startsWith("{")) provision(serialLine);
       serialLine = "";
       serialOverflow = false;
@@ -875,26 +877,49 @@ void serviceSIM(uint32_t now) {
   Serial.println("CALL ATTEMPT STARTED (ATD sent; answer not confirmed).");
 }
 
+// BENCH-ONLY monitor: relay control wires and mains must be physically disconnected.
+void restoreAlarm() {
+  Preferences prefs;
+  bool ok = prefs.begin("esplight-alarm", false);
+  bool latched = true;
+  if (ok) { latched = prefs.getBool("latched", false); prefs.end(); }
+  state.activated = latched;
+  state.latchStorageFault = !ok;
+}
+bool persistAlarm() {
+  Preferences prefs;
+  if (!prefs.begin("esplight-alarm", false)) return false;
+  bool ok = prefs.putBool("latched", true) > 0 && prefs.getBool("latched", false);
+  prefs.end();
+  return ok;
+}
 void serviceSensor(uint32_t now) {
   const bool low = digitalRead(SENSOR_DIGITAL) == LOW;
-  if (low && !sensorWasLow) sensorLowSince = now;
-  sensorWasLow = low;
+  bool newLatch = false;
   portENTER_CRITICAL(&stateMux);
-  if (low && !state.activated && uint32_t(now - sensorLowSince) >= SENSOR_FILTER_MS) {
+  state.sensorLow = low;
+  // No software debounce before recording an alarm. Never use this as a trip device.
+  if (low && !state.activated) {
     state.activated = true;
     ++state.revision;
+    newLatch = true;
   }
-  state.reportedOn = !state.activated && state.desiredOn;
-  const bool alarm = state.activated, high = state.reportedOn;
+  state.desiredOn = false;
+  state.reportedOn = false;
+  const bool alarm = state.activated;
   portEXIT_CRITICAL(&stateMux);
   digitalWrite(LED_ACTIVE, alarm ? HIGH : LOW);
   digitalWrite(LED_NORMAL, alarm ? LOW : HIGH);
-  digitalWrite(RELAY_1, high ? HIGH : LOW);
-  digitalWrite(RELAY_2, high ? HIGH : LOW);
+  if (newLatch && !persistAlarm()) {
+    portENTER_CRITICAL(&stateMux);
+    state.latchStorageFault = true;
+    portEXIT_CRITICAL(&stateMux);
+    Serial.println("ALARM STORAGE ERROR: keep equipment isolated.");
+  }
   if (uint32_t(now - lastSensorLog) >= 1000) {
     lastSensorLog = now;
-    Serial.printf("ADC34=%d | D32=%d | %s | relay=%s\n", analogRead(SENSOR_ANALOG), !low,
-                  alarm ? "ACTIVATED-LATCHED" : "NORMAL", high ? "HIGH" : "LOW");
+    Serial.printf("ADC34=%d | D32=%d | %s | MONITOR ONLY: relay contacts unverified\n", analogRead(SENSOR_ANALOG), !low,
+                  alarm ? "ALARM-LATCHED" : "NO SENSOR ALARM");
   }
 }
 
@@ -979,25 +1004,25 @@ bool cloudSync() {
   }
   const String updateTime = doc["updateTime"] | "";
   if (updateTime.isEmpty()) return false;
-  const bool desired = fields["desiredOn"]["booleanValue"];
-  portENTER_CRITICAL(&stateMux);
-  state.desiredOn = desired;
-  portEXIT_CRITICAL(&stateMux);
-  vTaskDelay(pdMS_TO_TICKS(25)); // Hardware loop owns GPIO.
+  // Never honor remote ON commands in this monitor-only build.
   SharedState local = snapshot();
   doc.clear();
   JsonObject write = doc["writes"].add<JsonObject>();
   write["update"]["name"] = document;
   JsonObject values = write["update"]["fields"].to<JsonObject>();
-  values["reportedOn"]["booleanValue"] = local.reportedOn;
+  values["monitorOnly"]["booleanValue"] = true;
+  values["alarmLatched"]["booleanValue"] = local.activated;
+  values["sensorLow"]["booleanValue"] = local.sensorLow;
+  values["latchStorageFault"]["booleanValue"] = local.latchStorageFault;
+  values["outputVerified"]["booleanValue"] = false;
   values["rssi"]["integerValue"] = String(WiFi.RSSI());
   values["ipAddress"]["stringValue"] = WiFi.localIP().toString();
   JsonArray mask = write["updateMask"]["fieldPaths"].to<JsonArray>();
-  mask.add("reportedOn"); mask.add("rssi"); mask.add("ipAddress");
-  if (local.activated) {
-    values["desiredOn"]["booleanValue"] = false;
-    mask.add("desiredOn");
-  }
+  mask.add("monitorOnly"); mask.add("alarmLatched"); mask.add("sensorLow");
+  mask.add("latchStorageFault"); mask.add("outputVerified");
+  mask.add("rssi"); mask.add("ipAddress");
+  values["desiredOn"]["booleanValue"] = false;
+  mask.add("desiredOn");
   write["currentDocument"]["updateTime"] = updateTime;
   JsonObject transform = write["updateTransforms"].add<JsonObject>();
   transform["fieldPath"] = "lastSeenAt";
@@ -1044,8 +1069,8 @@ void cloudTask(void *) {
 
 void setup() {
   Serial.begin(115200);
-  digitalWrite(RELAY_1, HIGH); digitalWrite(RELAY_2, HIGH);
-  pinMode(RELAY_1, OUTPUT); pinMode(RELAY_2, OUTPUT);
+  // No output drive. Physically disconnect relay wires before bench testing.
+  pinMode(RELAY_1, INPUT); pinMode(RELAY_2, INPUT);
   pinMode(LED_ACTIVE, OUTPUT); pinMode(LED_NORMAL, OUTPUT);
   digitalWrite(LED_ACTIVE, LOW); digitalWrite(LED_NORMAL, HIGH);
   pinMode(SENSOR_ANALOG, INPUT);
@@ -1053,8 +1078,10 @@ void setup() {
   analogReadResolution(12);
   Serial2.begin(9600, SERIAL_8N1, SIM_RX, SIM_TX);
   serialLine.reserve(4096); simLine.reserve(200);
+  restoreAlarm();
+  serviceSensor(millis());
   loadConfig();
-  Serial.println("ESP LIGHT LATCH + SIM800L 1.0.1 | Firebase esplight-a94ff | sensor/call timing independent of WiFi.");
+  Serial.println("ESP LIGHT MONITOR 1.1.0-DRAFT | BENCH ONLY | NOT A PROTECTIVE DEVICE");
   Serial.println("USB 115200 + newline: STATUS or config JSON. No remote alarm reset.");
   if (xTaskCreatePinnedToCore(cloudTask, "esplight-cloud", 16384, nullptr, 1, nullptr, 0) != pdPASS)
     Serial.println("Cloud task failed to start. Local alarm remains active.");
