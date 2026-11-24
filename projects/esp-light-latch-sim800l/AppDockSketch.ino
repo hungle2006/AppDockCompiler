@@ -1,4 +1,4 @@
-// ESP Light Control + latched LOW sensor + SIM800L, ESP32 DevKit only.
+// ESP Light Control + latched HIGH sensor + SIM800L, ESP32 DevKit only.
 // Firebase project preconfigured; private device credentials are provisioned through USB Serial only.
 #include <Arduino.h>
 #include <WiFi.h>
@@ -26,7 +26,7 @@ static const char FIREBASE_API_KEY[] = "AIzaSyArUn4Dk08qPkucW6MEUf05EwpV5fHFexI"
 // Pair with GPIO27, activeLow=false (HIGH = On). Both relays mirror one device.
 static_assert(CALL_DURATION_MS >= 1000 && CALL_DURATION_MS <= 60000, "Invalid call duration");
 static_assert(CLOUD_POLL_MS >= 15000, "Polling must be at least 15 seconds");
-// Original sensor logic: a sampled LOW latches immediately; no adjustable alarm delay.
+// Corrected sensor polarity: GPIO32 HIGH triggers a latch; LOW is normal input. Bench only.
 
 // Official Google Trust Services roots, https://pki.goog/roots.pem, 2026-11-23.
 static const char GOOGLE_ROOTS[] PROGMEM = R"ROOTS(
@@ -698,7 +698,7 @@ struct SharedState {
   bool activated = false;
   bool desiredOn = false; // Monitor-only: never energize an output.
   bool reportedOn = false; // Logical command only; NOT physical contact feedback.
-  bool sensorLow = false;
+  bool sensorHigh = false;
   bool latchStorageFault = false;
   uint32_t revision = 0;
 } state;
@@ -822,8 +822,8 @@ void readConsole() {
       if (serialOverflow) Serial.println("CONFIG REJECTED: line exceeds 4096 bytes.");
       else if (serialLine == "STATUS") {
         SharedState s = snapshot();
-        Serial.printf("latched=%d sensorLow=%d outputVerified=0 storageFault=%d SIMready=%d registered=%d WiFi=%d provisioned=%d\n",
-                      s.activated, s.sensorLow, s.latchStorageFault, simReady, simRegistered, WiFi.status() == WL_CONNECTED, config.ready);
+        Serial.printf("latched=%d sensorHigh=%d outputVerified=0 storageFault=%d SIMready=%d registered=%d WiFi=%d provisioned=%d\n",
+                      s.activated, s.sensorHigh, s.latchStorageFault, simReady, simRegistered, WiFi.status() == WL_CONNECTED, config.ready);
       } else if (serialLine.startsWith("{")) provision(serialLine);
       serialLine = "";
       serialOverflow = false;
@@ -890,7 +890,8 @@ void serviceSIM(uint32_t now) {
 }
 
 // BENCH-ONLY monitor: relay control wires and mains must be physically disconnected.
-void restoreAlarm(bool bootLow) {
+// Preserve historical alarm latch across polarity changes.
+void restoreAlarm(bool bootHigh) {
   Preferences prefs;
   bool ok = prefs.begin("esplight-alarm", false);
   bool latched = true;
@@ -898,15 +899,15 @@ void restoreAlarm(bool bootLow) {
     if (!prefs.isKey("latched")) {
       // A fresh or erased NVS cannot prove prior electrical safety.
       // Initialize only the software record; never claim the circuit is safe.
-      ok = prefs.putBool("latched", bootLow) > 0;
+      ok = prefs.putBool("latched", bootHigh) > 0;
     }
     latched = prefs.getBool("latched", true);
     prefs.end();
   }
-  state.sensorLow = bootLow;
-  state.activated = bootLow || latched || !ok;
+  state.sensorHigh = bootHigh;
+  state.activated = bootHigh || latched || !ok;
   state.latchStorageFault = !ok;
-  alarmSavePending = state.activated && (bootLow || !ok);
+  alarmSavePending = state.activated && (bootHigh || !ok);
 }
 bool persistAlarm() {
   Preferences prefs;
@@ -916,13 +917,13 @@ bool persistAlarm() {
   return ok;
 }
 void serviceSensor(uint32_t now) {
-  const bool low = digitalRead(SENSOR_DIGITAL) == LOW;
+  const bool high = digitalRead(SENSOR_DIGITAL) == HIGH;
   bool newLatch = false;
   portENTER_CRITICAL(&stateMux);
-  if (state.sensorLow != low) ++state.revision;
-  state.sensorLow = low;
+  if (state.sensorHigh != high) ++state.revision;
+  state.sensorHigh = high;
   // No software debounce before recording an alarm. Never use this as a trip device.
-  if (low && !state.activated) {
+  if (high && !state.activated) {
     state.activated = true;
     ++state.revision;
     newLatch = true;
@@ -952,7 +953,7 @@ void serviceSensor(uint32_t now) {
   }
   if (uint32_t(now - lastSensorLog) >= 1000) {
     lastSensorLog = now;
-    Serial.printf("ADC34=%d | D32=%d | %s | MONITOR ONLY: relay contacts unverified\n", analogRead(SENSOR_ANALOG), !low,
+    Serial.printf("ADC34=%d | D32=%d | %s | MONITOR ONLY: relay contacts unverified\n", analogRead(SENSOR_ANALOG), high,
                   alarm ? "ALARM-LATCHED" : "NO SENSOR ALARM");
   }
 }
@@ -1047,7 +1048,8 @@ bool cloudSync() {
   JsonObject values = write["update"]["fields"].to<JsonObject>();
   values["monitorOnly"]["booleanValue"] = true;
   values["alarmLatched"]["booleanValue"] = local.activated || previouslyLatched;
-  values["sensorLow"]["booleanValue"] = local.sensorLow;
+  // Legacy cloud field sensorLow denotes active alarm input, not physical pin level.
+  values["sensorLow"]["booleanValue"] = local.sensorHigh;
   values["latchStorageFault"]["booleanValue"] = local.latchStorageFault;
   values["outputVerified"]["booleanValue"] = false;
   values["rssi"]["integerValue"] = String(WiFi.RSSI());
@@ -1112,16 +1114,16 @@ void setup() {
   digitalWrite(LED_ACTIVE, LOW); digitalWrite(LED_NORMAL, LOW); // No normal indication before sampling.
   pinMode(SENSOR_ANALOG, INPUT);
   pinMode(SENSOR_DIGITAL, INPUT); // Isolated sensor must drive defined 3.3V HIGH/LOW.
-  const bool bootLow = digitalRead(SENSOR_DIGITAL) == LOW;
-  if (bootLow) digitalWrite(LED_ACTIVE, HIGH);
+  const bool bootHigh = digitalRead(SENSOR_DIGITAL) == HIGH;
+  if (bootHigh) digitalWrite(LED_ACTIVE, HIGH);
   analogReadResolution(12);
   Serial2.begin(9600, SERIAL_8N1, SIM_RX, SIM_TX);
   serialLine.reserve(4096); simLine.reserve(200);
-  restoreAlarm(bootLow);
+  restoreAlarm(bootHigh);
   lastAlarmSaveAttempt = millis() - 5000;
   serviceSensor(millis());
   loadConfig();
-  Serial.println("ESP LIGHT MONITOR 1.1.2-DRAFT | BENCH ONLY | NOT A PROTECTIVE DEVICE");
+  Serial.println("ESP LIGHT MONITOR 1.1.3-DRAFT | GPIO32 HIGH=ALARM | BENCH ONLY | NOT A PROTECTIVE DEVICE");
   Serial.println("USB 115200 + newline: STATUS or config JSON. No remote alarm reset.");
   if (xTaskCreatePinnedToCore(cloudTask, "esplight-cloud", 16384, nullptr, 1, nullptr, 0) != pdPASS)
     Serial.println("Cloud task failed to start. Local alarm remains active.");
