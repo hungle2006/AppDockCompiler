@@ -1,9 +1,9 @@
 {
   "id": "esp-light-latch-sim800l",
   "title": "ESP Light · Cảm biến chốt & SIM800L",
-  "description": "ESP32 DevKit: cảm biến GPIO34/32, LED2/4, relay27/26, gọi SIM800L16/17. Firebase esplight-a94ff đã cài sẵn. Nạp firmware, chọn JSON ghép nối riêng từ ESP Light Control và nhập Wi-Fi/số điện thoại qua USB; không gửi mật khẩu lên máy chủ biên dịch.",
+  "description": "TẠM NGỪNG PHÁT HÀNH vì cần xác minh an toàn phần cứng. Không dùng ESP32/relay làm thiết bị chống điện giật; cần RCBO/RCCB độc lập. Bản cũ có thể đưa GPIO relay lên HIGH khi khởi động. Chỉ thử khi đã cách ly điện lưới và tháo dây điều khiển relay.",
   "version": "1.0.1",
-  "published": true,
+  "published": false,
   "boards": [
     "esp32"
   ],
