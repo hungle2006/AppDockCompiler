@@ -26,7 +26,7 @@ static const char FIREBASE_API_KEY[] = "AIzaSyArUn4Dk08qPkucW6MEUf05EwpV5fHFexI"
 // Pair with GPIO27, activeLow=false (HIGH = On). Both relays mirror one device.
 static_assert(CALL_DURATION_MS >= 1000 && CALL_DURATION_MS <= 60000, "Invalid call duration");
 static_assert(CLOUD_POLL_MS >= 15000, "Polling must be at least 15 seconds");
-static_assert(SENSOR_FILTER_MS >= 10 && SENSOR_FILTER_MS <= 1000, "Invalid sensor filter");
+// Original sensor logic: a sampled LOW latches immediately; no adjustable alarm delay.
 
 // Official Google Trust Services roots, https://pki.goog/roots.pem, 2026-11-23.
 static const char GOOGLE_ROOTS[] PROGMEM = R"ROOTS(
@@ -705,9 +705,10 @@ struct SharedState {
 portMUX_TYPE stateMux = portMUX_INITIALIZER_UNLOCKED;
 
 bool callTriggered = false, callInProgress = false;
-bool simReady = false, simRegistered = false, sensorWasLow = false;
+bool simReady = false, simRegistered = false;
 bool phoneErrorPrinted = false, simQueryPending = false;
-uint32_t sensorLowSince = 0, callStartTime = 0, lastSensorLog = 0;
+uint32_t callStartTime = 0, lastSensorLog = 0, lastAlarmSaveAttempt = 0;
+bool alarmSavePending = false;
 uint32_t lastSimCommand = 0, lastRegistrationQuery = 0;
 uint8_t simInitStep = 0;
 String simLine, serialLine;
@@ -734,7 +735,11 @@ bool safeSegment(const String &value) {
 
 void loadConfig() {
   Preferences prefs;
-  prefs.begin("esplight", true);
+  if (!prefs.begin("esplight", true)) {
+    config.ready = false;
+    Serial.println("USB CONFIG REQUIRED: no readable configuration.");
+    return;
+  }
   config.ssid = prefs.getString("ssid", "");
   config.wifiPassword = prefs.getString("wifi", "");
   config.phone = prefs.getString("phone", "");
@@ -753,10 +758,15 @@ void loadConfig() {
     Serial.println("PAIRING MISMATCH: provision again using ESP Light Control (esplight-a94ff).");
   }
   prefs.end();
+  if (config.ready && (config.ssid.isEmpty() || !validPhone(config.phone) || !safeSegment(config.ownerUid) || !safeSegment(config.deviceId) || config.email.indexOf('@') < 1 || config.password.length() < 6)) {
+    config.ready = false;
+    Serial.println("USB CONFIG REQUIRED: incomplete configuration.");
+  }
 }
 
 void provision(const String &line) {
-  if (snapshot().activated) { Serial.println("CONFIG REJECTED: alarm latched; inspect sensor and restart first."); return; }
+  // Pairing is local USB only; never clears the alarm or enables any output.
+  // This lets the monitor report a pre-existing alarm after provisioning.
   JsonDocument doc;
   if (deserializeJson(doc, line)) { Serial.println("CONFIG REJECTED: invalid JSON."); return; }
   JsonVariantConst pair = doc["pairing"].is<JsonObject>() ? doc["pairing"].as<JsonVariantConst>() : doc.as<JsonVariantConst>();
@@ -784,7 +794,9 @@ void provision(const String &line) {
   }
   Preferences prefs;
   if (!prefs.begin("esplight", false)) { Serial.println("CONFIG ERROR: cannot open NVS."); return; }
-  prefs.putBool("ready", false);
+  if (prefs.putBool("ready", false) == 0 || prefs.getBool("ready", true)) {
+    prefs.end(); Serial.println("CONFIG ERROR: cannot invalidate previous configuration."); return;
+  }
   bool ok = prefs.putString("ssid", ssid) > 0;
   prefs.putString("wifi", wifi); // Empty password is valid for an open AP.
   ok = (prefs.getString("wifi") == wifi) && ok;
@@ -830,7 +842,7 @@ void readSIM() {
     simLine.trim();
     if (simLine.length()) {
       if (!simLine.startsWith("ATD")) { Serial.print("SIM: "); Serial.println(simLine); }
-      if (simLine.startsWith("+CPIN:")) simReady = simLine.indexOf("READY") >= 0;
+      if (simLine.startsWith("+CPIN:")) { String v = simLine.substring(6); v.trim(); simReady = v == "READY"; }
       if (simLine.startsWith("+CREG:")) {
         String value = simLine.substring(simLine.lastIndexOf(',') >= 0 ? simLine.lastIndexOf(',') + 1 : simLine.indexOf(':') + 1);
         value.trim();
@@ -878,13 +890,23 @@ void serviceSIM(uint32_t now) {
 }
 
 // BENCH-ONLY monitor: relay control wires and mains must be physically disconnected.
-void restoreAlarm() {
+void restoreAlarm(bool bootLow) {
   Preferences prefs;
   bool ok = prefs.begin("esplight-alarm", false);
   bool latched = true;
-  if (ok) { latched = prefs.getBool("latched", false); prefs.end(); }
-  state.activated = latched;
+  if (ok) {
+    if (!prefs.isKey("latched")) {
+      // A fresh or erased NVS cannot prove prior electrical safety.
+      // Initialize only the software record; never claim the circuit is safe.
+      ok = prefs.putBool("latched", bootLow) > 0;
+    }
+    latched = prefs.getBool("latched", true);
+    prefs.end();
+  }
+  state.sensorLow = bootLow;
+  state.activated = bootLow || latched || !ok;
   state.latchStorageFault = !ok;
+  alarmSavePending = state.activated && (bootLow || !ok);
 }
 bool persistAlarm() {
   Preferences prefs;
@@ -897,6 +919,7 @@ void serviceSensor(uint32_t now) {
   const bool low = digitalRead(SENSOR_DIGITAL) == LOW;
   bool newLatch = false;
   portENTER_CRITICAL(&stateMux);
+  if (state.sensorLow != low) ++state.revision;
   state.sensorLow = low;
   // No software debounce before recording an alarm. Never use this as a trip device.
   if (low && !state.activated) {
@@ -910,11 +933,21 @@ void serviceSensor(uint32_t now) {
   portEXIT_CRITICAL(&stateMux);
   digitalWrite(LED_ACTIVE, alarm ? HIGH : LOW);
   digitalWrite(LED_NORMAL, alarm ? LOW : HIGH);
-  if (newLatch && !persistAlarm()) {
-    portENTER_CRITICAL(&stateMux);
-    state.latchStorageFault = true;
-    portEXIT_CRITICAL(&stateMux);
-    Serial.println("ALARM STORAGE ERROR: keep equipment isolated.");
+  if (newLatch) {
+    alarmSavePending = true;
+    lastAlarmSaveAttempt = now - 5000;
+    Serial.println("SENSOR TRIGGERED: alarm latched locally.");
+  }
+  if (alarmSavePending && uint32_t(now - lastAlarmSaveAttempt) >= 5000) {
+    lastAlarmSaveAttempt = now;
+    if (persistAlarm()) { alarmSavePending = false; }
+    else {
+      portENTER_CRITICAL(&stateMux);
+      if (!state.latchStorageFault) ++state.revision;
+      state.latchStorageFault = true; // Remains visible for this boot even if a retry works.
+      portEXIT_CRITICAL(&stateMux);
+      Serial.println("ALARM STORAGE ERROR: keep equipment isolated; retrying.");
+    }
   }
   if (uint32_t(now - lastSensorLog) >= 1000) {
     lastSensorLog = now;
@@ -1004,6 +1037,7 @@ bool cloudSync() {
   }
   const String updateTime = doc["updateTime"] | "";
   if (updateTime.isEmpty()) return false;
+  const bool previouslyLatched = fields["alarmLatched"]["booleanValue"] | false;
   // Never honor remote ON commands in this monitor-only build.
   SharedState local = snapshot();
   doc.clear();
@@ -1011,7 +1045,7 @@ bool cloudSync() {
   write["update"]["name"] = document;
   JsonObject values = write["update"]["fields"].to<JsonObject>();
   values["monitorOnly"]["booleanValue"] = true;
-  values["alarmLatched"]["booleanValue"] = local.activated;
+  values["alarmLatched"]["booleanValue"] = local.activated || previouslyLatched;
   values["sensorLow"]["booleanValue"] = local.sensorLow;
   values["latchStorageFault"]["booleanValue"] = local.latchStorageFault;
   values["outputVerified"]["booleanValue"] = false;
@@ -1072,16 +1106,19 @@ void setup() {
   // No output drive. Physically disconnect relay wires before bench testing.
   pinMode(RELAY_1, INPUT); pinMode(RELAY_2, INPUT);
   pinMode(LED_ACTIVE, OUTPUT); pinMode(LED_NORMAL, OUTPUT);
-  digitalWrite(LED_ACTIVE, LOW); digitalWrite(LED_NORMAL, HIGH);
+  digitalWrite(LED_ACTIVE, LOW); digitalWrite(LED_NORMAL, LOW); // No normal indication before sampling.
   pinMode(SENSOR_ANALOG, INPUT);
-  pinMode(SENSOR_DIGITAL, INPUT); // Sensor must drive defined 3.3V HIGH/LOW.
+  pinMode(SENSOR_DIGITAL, INPUT); // Isolated sensor must drive defined 3.3V HIGH/LOW.
+  const bool bootLow = digitalRead(SENSOR_DIGITAL) == LOW;
+  if (bootLow) digitalWrite(LED_ACTIVE, HIGH);
   analogReadResolution(12);
   Serial2.begin(9600, SERIAL_8N1, SIM_RX, SIM_TX);
   serialLine.reserve(4096); simLine.reserve(200);
-  restoreAlarm();
+  restoreAlarm(bootLow);
+  lastAlarmSaveAttempt = millis() - 5000;
   serviceSensor(millis());
   loadConfig();
-  Serial.println("ESP LIGHT MONITOR 1.1.0-DRAFT | BENCH ONLY | NOT A PROTECTIVE DEVICE");
+  Serial.println("ESP LIGHT MONITOR 1.1.1-DRAFT | BENCH ONLY | NOT A PROTECTIVE DEVICE");
   Serial.println("USB 115200 + newline: STATUS or config JSON. No remote alarm reset.");
   if (xTaskCreatePinnedToCore(cloudTask, "esplight-cloud", 16384, nullptr, 1, nullptr, 0) != pdPASS)
     Serial.println("Cloud task failed to start. Local alarm remains active.");
@@ -1092,5 +1129,5 @@ void loop() {
   serviceSensor(now);
   serviceSIM(now);
   readConsole();
-  delay(5);
+  delay(5); // Cooperative local monitoring; no SIM startup delay blocks this loop.
 }
