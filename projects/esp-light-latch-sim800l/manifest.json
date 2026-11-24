@@ -1,8 +1,8 @@
 {
   "id": "esp-light-latch-sim800l",
   "title": "ESP Light · Cảm biến chốt & SIM800L",
-  "description": "TẠM NGỪNG PHÁT HÀNH vì cần xác minh an toàn phần cứng. Không dùng ESP32/relay làm thiết bị chống điện giật; cần RCBO/RCCB độc lập. Bản cũ có thể đưa GPIO relay lên HIGH khi khởi động. Chỉ thử khi đã cách ly điện lưới và tháo dây điều khiển relay.",
-  "version": "1.0.1",
+  "description": "BẢN NHÁP CHỈ GIÁM SÁT (chưa phát hành). Thử điện áp thấp, cách ly hoàn toàn 220V và tháo dây relay. Không điều khiển GPIO27/26, không bật tải qua Firebase; lưu chốt cảnh báo. Cần cập nhật rules/UI Firebase và kiểm thử trước khi phát hành. Không thay thế RCBO/RCCB.",
+  "version": "1.1.0-draft",
   "published": false,
   "boards": [
     "esp32"
