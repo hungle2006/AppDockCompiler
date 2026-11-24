@@ -1,4 +1,4 @@
-// DRAFT ONLY. Review against deployed rules and test in Emulator before publishing.
+// Candidate: monitor-only telemetry and server-side command lock.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -6,17 +6,22 @@ service cloud.firestore {
       function authenticated() { return request.auth != null; }
       function owner() { return authenticated() && request.auth.uid == ownerUid; }
       function device() { return authenticated() && request.auth.uid == resource.data.deviceUid; }
-      function monitorBefore() { return resource.data.get('monitorOnly', false) == true; }
+      function monitor(d) {
+        return d.get('monitorOnly', false) == true
+          || (d.get('gpio', -1) == 27 && d.get('activeLow', true) == false);
+      }
+      function monitorBefore() { return monitor(resource.data); }
       function ownerUpdate() {
         return request.resource.data.deviceUid == resource.data.deviceUid
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['name','room','gpio','activeLow','desiredOn','updatedAt'])
-          && (!monitorBefore() || (request.resource.data.desiredOn == false
-             && request.resource.data.gpio == resource.data.gpio
+          && (!(monitorBefore() || monitor(request.resource.data)) || request.resource.data.desiredOn == false)
+          && (!monitorBefore() || (request.resource.data.gpio == resource.data.gpio
              && request.resource.data.activeLow == resource.data.activeLow));
       }
       function legacyDeviceUpdate() {
-        return !monitorBefore()
+        return resource.data.get('monitorOnly', false) != true
+          && (!monitorBefore() || request.resource.data.desiredOn == false)
           && request.resource.data.deviceUid == resource.data.deviceUid
           && request.resource.data.desiredOn is bool
           && request.resource.data.reportedOn is bool
