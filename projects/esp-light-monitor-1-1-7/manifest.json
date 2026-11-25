@@ -1,9 +1,9 @@
 {
   "id": "esp-light-monitor-1-1-7",
-  "title": "ESP Light 1.1.7 · LED/D13/SIM800L",
-  "description": "BẢN THỬ NGHIỆM GIÁM SÁT; không đóng lại relay. D32 LOW cảnh báo, D13 xác nhận tại chỗ khi HIGH ổn định 2 giây; LED D2/D4 đồng bộ xác nhận, hiển thị D13 trên Serial, SIM800L sẵn sàng cho cảnh báo mới sau xác nhận. Giữ chốt NVS, GPIO27/26 luôn LOW, khóa điều khiển từ xa. Firebase hỗ trợ metadata 1.1.7 sau khi Rules tương thích được xác minh. Cách ly điện lưới, tháo dây relay trước khi thử. Chưa biên dịch và kiểm thử phần cứng.",
+  "title": "ESP Light 1.1.7 · LED/D13/SIM800L (thử nghiệm)",
+  "description": "BẢN THỬ NGHIỆM GIÁM SÁT; không đóng lại relay. D32 LOW cảnh báo, D13 xác nhận tại chỗ khi HIGH ổn định 2 giây; LED D2/D4 đồng bộ xác nhận, hiển thị D13 trên Serial, SIM800L sẵn sàng cho cảnh báo mới sau xác nhận. Giữ chốt NVS, GPIO27/26 luôn LOW, khóa điều khiển từ xa. Firestore đã được cập nhật danh sách phiên bản tương thích 1.1.7; web V17 đã triển khai. Chưa kiểm chứng đồng bộ thực tế 1.1.7. Cách ly điện lưới, tháo dây relay trước khi thử. Chưa biên dịch và kiểm thử phần cứng.",
   "version": "1.1.7-draft",
-  "published": false,
+  "published": true,
   "boards": [
     "esp32"
   ],
