@@ -700,6 +700,7 @@ struct SharedState {
   bool desiredOn = false; // Monitor-only: never energize an output.
   bool reportedOn = false; // Logical command only; NOT physical contact feedback.
   bool sensorAlarm = false;
+  bool localAcknowledged = false; // Protected by stateMux; RAM only.
   bool latchStorageFault = false;
   uint32_t revision = 0;
 } state;
@@ -710,7 +711,7 @@ bool simReady = false, simRegistered = false;
 bool phoneErrorPrinted = false, simQueryPending = false;
 uint32_t callStartTime = 0, lastSensorLog = 0, lastAlarmSaveAttempt = 0;
 bool alarmSavePending = false;
-bool resetRaw = false, resetStable = false, resetArmed = false, localAcknowledged = false;
+bool resetRaw = false, resetStable = false, resetArmed = false;
 bool normalTracking = false;
 uint32_t resetEdgeAt = 0, normalSince = 0;
 uint32_t lastSimCommand = 0, lastRegistrationQuery = 0;
@@ -828,7 +829,7 @@ void readConsole() {
       else if (serialLine == "STATUS") {
         SharedState s = snapshot();
         Serial.printf("latched=%d sensorAlarm=%d outputVerified=0 storageFault=%d SIMready=%d registered=%d WiFi=%d provisioned=%d localAck=%d\n",
-                      s.activated, s.sensorAlarm, s.latchStorageFault, simReady, simRegistered, WiFi.status() == WL_CONNECTED, config.ready, localAcknowledged);
+                      s.activated, s.sensorAlarm, s.latchStorageFault, simReady, simRegistered, WiFi.status() == WL_CONNECTED, config.ready, s.localAcknowledged);
       } else if (serialLine.startsWith("{")) provision(serialLine);
       serialLine = "";
       serialOverflow = false;
@@ -924,12 +925,13 @@ bool persistAlarm() {
 void serviceSensor(uint32_t now) {
   const bool high = digitalRead(SENSOR_DIGITAL) == HIGH;
   const bool inputAlarm = !high;
-  if (inputAlarm) { normalTracking = false; localAcknowledged = false; }
+  if (inputAlarm) { normalTracking = false; }
   else if (!normalTracking) { normalTracking = true; normalSince = now; }
   bool newLatch = false;
   portENTER_CRITICAL(&stateMux);
   if (state.sensorAlarm != inputAlarm) ++state.revision;
   state.sensorAlarm = inputAlarm;
+  if (inputAlarm && state.localAcknowledged) { state.localAcknowledged = false; ++state.revision; }
   // No software debounce before recording an alarm. Never use this as a trip device.
   if (inputAlarm && !state.activated) {
     state.activated = true;
@@ -955,6 +957,7 @@ void serviceSensor(uint32_t now) {
       portENTER_CRITICAL(&stateMux);
       if (!state.latchStorageFault) ++state.revision;
       state.latchStorageFault = true; // Remains visible for this boot even if a retry works.
+      if (state.localAcknowledged) { state.localAcknowledged = false; ++state.revision; }
       portEXIT_CRITICAL(&stateMux);
       Serial.println("ALARM STORAGE ERROR: keep equipment isolated; retrying.");
     }
@@ -1026,7 +1029,7 @@ bool authenticate() {
   return idToken.length() > 0;
 }
 
-bool cloudSync() {
+bool cloudSyncAttempt(bool includeMetadata) {
   if (!authenticate()) return false;
   const String document = "projects/" + config.projectId + "/databases/(default)/documents/users/" + config.ownerUid + "/devices/" + config.deviceId;
   const String base = "https://firestore.googleapis.com/v1/";
@@ -1058,6 +1061,11 @@ bool cloudSync() {
   values["alarmLatched"]["booleanValue"] = local.activated || previouslyLatched;
   // Legacy cloud field sensorLow denotes active alarm input; LOW is active in this build.
   values["sensorLow"]["booleanValue"] = local.sensorAlarm;
+  if (includeMetadata) {
+    values["sensorLevel"]["stringValue"] = local.sensorAlarm ? "LOW" : "HIGH";
+    values["localAcknowledged"]["booleanValue"] = local.localAcknowledged && local.activated && !local.sensorAlarm && !local.latchStorageFault;
+    values["firmwareVersion"]["stringValue"] = "1.1.6-draft";
+  }
   values["latchStorageFault"]["booleanValue"] = local.latchStorageFault;
   values["outputVerified"]["booleanValue"] = false;
   values["rssi"]["integerValue"] = String(WiFi.RSSI());
@@ -1066,18 +1074,29 @@ bool cloudSync() {
   mask.add("monitorOnly"); mask.add("alarmLatched"); mask.add("sensorLow");
   mask.add("latchStorageFault"); mask.add("outputVerified");
   mask.add("rssi"); mask.add("ipAddress");
+  if (includeMetadata) { mask.add("sensorLevel"); mask.add("localAcknowledged"); mask.add("firmwareVersion"); }
   values["desiredOn"]["booleanValue"] = false;
   mask.add("desiredOn");
   write["currentDocument"]["updateTime"] = updateTime;
   JsonObject transform = write["updateTransforms"].add<JsonObject>();
   transform["fieldPath"] = "lastSeenAt";
   transform["setToServerValue"] = "REQUEST_TIME";
+  if (includeMetadata) {
+    JsonObject metaTime = write["updateTransforms"].add<JsonObject>();
+    metaTime["fieldPath"] = "telemetryAt";
+    metaTime["setToServerValue"] = "REQUEST_TIME";
+  }
   String body;
   serializeJson(doc, body);
   code = https("POST", base + "projects/" + config.projectId + "/databases/(default)/documents:commit", body, response, true);
+  if (code == 403 && includeMetadata) {
+    Serial.println("Firestore metadata denied (403); retrying legacy heartbeat with fresh document. New web fields unavailable.");
+    return cloudSyncAttempt(false);
+  }
   if (code != 200) Serial.printf("Firestore heartbeat failed (%d); refetch before retry.\n", code);
   return code == 200;
 }
+bool cloudSync() { return cloudSyncAttempt(true); }
 
 void cloudTask(void *) {
   if (!config.ready) { Serial.println("USB CONFIG REQUIRED. Local alarm remains active."); vTaskDelete(nullptr); return; }
@@ -1139,7 +1158,9 @@ void serviceResetButton(uint32_t now) {
     return;
   }
   if (!current.activated) { Serial.println("D13: no latched alarm to acknowledge."); return; }
-  localAcknowledged = true;
+  portENTER_CRITICAL(&stateMux);
+  if (!state.localAcknowledged) { state.localAcknowledged = true; ++state.revision; }
+  portEXIT_CRITICAL(&stateMux);
   Serial.println("D13: LOCAL ACK ONLY; stored alarm retained; relay outputs remain LOW.");
 }
 
@@ -1165,7 +1186,7 @@ void setup() {
   lastAlarmSaveAttempt = millis() - 5000;
   serviceSensor(millis());
   loadConfig();
-  Serial.println("ESP LIGHT MONITOR 1.1.5-DRAFT | GPIO32 LOW=ALARM | D13=LOCAL ACK | BENCH ONLY | NOT A PROTECTIVE DEVICE");
+  Serial.println("ESP LIGHT MONITOR 1.1.6-DRAFT | GPIO32 LOW=ALARM | D13=LOCAL ACK | BENCH ONLY | NOT A PROTECTIVE DEVICE");
   Serial.println("USB 115200 + newline: STATUS or config JSON. No remote alarm reset.");
   if (xTaskCreatePinnedToCore(cloudTask, "esplight-cloud", 16384, nullptr, 1, nullptr, 0) != pdPASS)
     Serial.println("Cloud task failed to start. Local alarm remains active.");
