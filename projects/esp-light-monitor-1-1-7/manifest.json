@@ -1,0 +1,31 @@
+{
+  "id": "esp-light-monitor-1-1-7",
+  "title": "ESP Light 1.1.7 · LED/D13/SIM800L",
+  "description": "BẢN THỬ NGHIỆM GIÁM SÁT; không đóng lại relay. D32 LOW cảnh báo, D13 xác nhận tại chỗ khi HIGH ổn định 2 giây; LED D2/D4 đồng bộ xác nhận, hiển thị D13 trên Serial, SIM800L sẵn sàng cho cảnh báo mới sau xác nhận. Giữ chốt NVS, GPIO27/26 luôn LOW, khóa điều khiển từ xa. Firebase hỗ trợ metadata 1.1.7 sau khi Rules tương thích được xác minh. Cách ly điện lưới, tháo dây relay trước khi thử. Chưa biên dịch và kiểm thử phần cứng.",
+  "version": "1.1.7-draft",
+  "published": false,
+  "boards": [
+    "esp32"
+  ],
+  "libraries": [
+    "ArduinoJson"
+  ],
+  "fields": [
+    {
+      "key": "CALL_DURATION_MS",
+      "label": "Thời gian tối đa mỗi lần gọi (ms)",
+      "type": "integer",
+      "min": 1000,
+      "max": 60000,
+      "default": 25000
+    },
+    {
+      "key": "CLOUD_POLL_MS",
+      "label": "Chu kỳ đồng bộ Firestore (ms)",
+      "type": "integer",
+      "min": 15000,
+      "max": 60000,
+      "default": 15000
+    }
+  ]
+}
