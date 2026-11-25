@@ -15,6 +15,7 @@ static const char FIREBASE_API_KEY[] = "AIzaSyArUn4Dk08qPkucW6MEUf05EwpV5fHFexI"
 
 #define SENSOR_ANALOG 34
 #define SENSOR_DIGITAL 32
+#define RESET_BUTTON 13 // Normally-open local acknowledge button; active LOW, 3.3V logic.
 #define LED_ACTIVE 2
 #define LED_NORMAL 4
 #define RELAY_1 27
@@ -698,7 +699,7 @@ struct SharedState {
   bool activated = false;
   bool desiredOn = false; // Monitor-only: never energize an output.
   bool reportedOn = false; // Logical command only; NOT physical contact feedback.
-  bool sensorHigh = false;
+  bool sensorAlarm = false;
   bool latchStorageFault = false;
   uint32_t revision = 0;
 } state;
@@ -709,6 +710,9 @@ bool simReady = false, simRegistered = false;
 bool phoneErrorPrinted = false, simQueryPending = false;
 uint32_t callStartTime = 0, lastSensorLog = 0, lastAlarmSaveAttempt = 0;
 bool alarmSavePending = false;
+bool resetRaw = false, resetStable = false, resetArmed = false, localAcknowledged = false;
+bool normalTracking = false;
+uint32_t resetEdgeAt = 0, normalSince = 0;
 uint32_t lastSimCommand = 0, lastRegistrationQuery = 0;
 uint8_t simInitStep = 0;
 String simLine, serialLine;
@@ -823,8 +827,8 @@ void readConsole() {
       if (serialOverflow) Serial.println("CONFIG REJECTED: line exceeds 4096 bytes.");
       else if (serialLine == "STATUS") {
         SharedState s = snapshot();
-        Serial.printf("latched=%d sensorHigh=%d outputVerified=0 storageFault=%d SIMready=%d registered=%d WiFi=%d provisioned=%d\n",
-                      s.activated, s.sensorHigh, s.latchStorageFault, simReady, simRegistered, WiFi.status() == WL_CONNECTED, config.ready);
+        Serial.printf("latched=%d sensorAlarm=%d outputVerified=0 storageFault=%d SIMready=%d registered=%d WiFi=%d provisioned=%d localAck=%d\n",
+                      s.activated, s.sensorAlarm, s.latchStorageFault, simReady, simRegistered, WiFi.status() == WL_CONNECTED, config.ready, localAcknowledged);
       } else if (serialLine.startsWith("{")) provision(serialLine);
       serialLine = "";
       serialOverflow = false;
@@ -892,7 +896,7 @@ void serviceSIM(uint32_t now) {
 
 // BENCH-ONLY monitor: relay control wires and mains must be physically disconnected.
 // Preserve historical alarm latch across polarity changes.
-void restoreAlarm(bool bootHigh) {
+void restoreAlarm(bool bootAlarm) {
   Preferences prefs;
   bool ok = prefs.begin("esplight-alarm", false);
   bool latched = true;
@@ -900,15 +904,15 @@ void restoreAlarm(bool bootHigh) {
     if (!prefs.isKey("latched")) {
       // A fresh or erased NVS cannot prove prior electrical safety.
       // Initialize only the software record; never claim the circuit is safe.
-      ok = prefs.putBool("latched", bootHigh) > 0;
+      ok = prefs.putBool("latched", bootAlarm) > 0;
     }
     latched = prefs.getBool("latched", true);
     prefs.end();
   }
-  state.sensorHigh = bootHigh;
-  state.activated = bootHigh || latched || !ok;
+  state.sensorAlarm = bootAlarm;
+  state.activated = bootAlarm || latched || !ok;
   state.latchStorageFault = !ok;
-  alarmSavePending = state.activated && (bootHigh || !ok);
+  alarmSavePending = state.activated && (bootAlarm || !ok);
 }
 bool persistAlarm() {
   Preferences prefs;
@@ -919,12 +923,15 @@ bool persistAlarm() {
 }
 void serviceSensor(uint32_t now) {
   const bool high = digitalRead(SENSOR_DIGITAL) == HIGH;
+  const bool inputAlarm = !high;
+  if (inputAlarm) { normalTracking = false; localAcknowledged = false; }
+  else if (!normalTracking) { normalTracking = true; normalSince = now; }
   bool newLatch = false;
   portENTER_CRITICAL(&stateMux);
-  if (state.sensorHigh != high) ++state.revision;
-  state.sensorHigh = high;
+  if (state.sensorAlarm != inputAlarm) ++state.revision;
+  state.sensorAlarm = inputAlarm;
   // No software debounce before recording an alarm. Never use this as a trip device.
-  if (high && !state.activated) {
+  if (inputAlarm && !state.activated) {
     state.activated = true;
     ++state.revision;
     newLatch = true;
@@ -954,7 +961,7 @@ void serviceSensor(uint32_t now) {
   }
   if (uint32_t(now - lastSensorLog) >= 1000) {
     lastSensorLog = now;
-    Serial.printf("ADC34=%d | D32=%d | INPUT=%s | %s | MONITOR ONLY: relay contacts unverified\n", analogRead(SENSOR_ANALOG), high, high ? "HIGH-ALARM" : "LOW-NORMAL-INPUT",
+    Serial.printf("ADC34=%d | D32=%d | INPUT=%s | %s | MONITOR ONLY: relay contacts unverified\n", analogRead(SENSOR_ANALOG), high, high ? "HIGH-NORMAL-INPUT" : "LOW-ALARM",
                   alarm ? "ALARM-LATCHED" : "NO SENSOR ALARM");
   }
 }
@@ -1049,8 +1056,8 @@ bool cloudSync() {
   JsonObject values = write["update"]["fields"].to<JsonObject>();
   values["monitorOnly"]["booleanValue"] = true;
   values["alarmLatched"]["booleanValue"] = local.activated || previouslyLatched;
-  // Legacy cloud field sensorLow denotes active alarm input, not physical pin level.
-  values["sensorLow"]["booleanValue"] = local.sensorHigh;
+  // Legacy cloud field sensorLow denotes active alarm input; LOW is active in this build.
+  values["sensorLow"]["booleanValue"] = local.sensorAlarm;
   values["latchStorageFault"]["booleanValue"] = local.latchStorageFault;
   values["outputVerified"]["booleanValue"] = false;
   values["rssi"]["integerValue"] = String(WiFi.RSSI());
@@ -1112,6 +1119,30 @@ void cloudTask(void *) {
   }
 }
 
+// D13 acknowledges an existing alert locally; never clears NVS or energizes outputs.
+void serviceResetButton(uint32_t now) {
+  const bool pressed = digitalRead(RESET_BUTTON) == LOW;
+  if (pressed != resetRaw) { resetRaw = pressed; resetEdgeAt = now; }
+  if (uint32_t(now - resetEdgeAt) < 40) return;
+  if (resetStable == resetRaw) {
+    if (!resetStable) resetArmed = true;
+    return;
+  }
+  resetStable = resetRaw;
+  if (!resetStable) { resetArmed = true; return; }
+  if (!resetArmed) return;
+  resetArmed = false;
+  const SharedState current = snapshot();
+  if (current.sensorAlarm || digitalRead(SENSOR_DIGITAL) == LOW || current.latchStorageFault
+      || alarmSavePending || !normalTracking || uint32_t(now - normalSince) < 2000) {
+    Serial.println("D13: ACK REJECTED; active alarm, storage fault or unstable input.");
+    return;
+  }
+  if (!current.activated) { Serial.println("D13: no latched alarm to acknowledge."); return; }
+  localAcknowledged = true;
+  Serial.println("D13: LOCAL ACK ONLY; stored alarm retained; relay outputs remain LOW.");
+}
+
 void setup() {
   // Bench only, with relay control wiring physically disconnected and mains isolated.
   // User confirms LOW is the off command. Never energize/rearm these outputs.
@@ -1122,16 +1153,19 @@ void setup() {
   digitalWrite(LED_ACTIVE, LOW); digitalWrite(LED_NORMAL, LOW); // No normal indication before sampling.
   pinMode(SENSOR_ANALOG, INPUT);
   pinMode(SENSOR_DIGITAL, INPUT); // Isolated sensor must drive defined 3.3V HIGH/LOW.
-  const bool bootHigh = digitalRead(SENSOR_DIGITAL) == HIGH;
-  if (bootHigh) digitalWrite(LED_ACTIVE, HIGH);
+  pinMode(RESET_BUTTON, INPUT_PULLUP);
+  resetRaw = resetStable = digitalRead(RESET_BUTTON) == LOW;
+  resetEdgeAt = millis(); resetArmed = false;
+  const bool bootAlarm = digitalRead(SENSOR_DIGITAL) == LOW;
+  if (bootAlarm) digitalWrite(LED_ACTIVE, HIGH);
   analogReadResolution(12);
   Serial2.begin(9600, SERIAL_8N1, SIM_RX, SIM_TX);
   serialLine.reserve(4096); simLine.reserve(200);
-  restoreAlarm(bootHigh);
+  restoreAlarm(bootAlarm);
   lastAlarmSaveAttempt = millis() - 5000;
   serviceSensor(millis());
   loadConfig();
-  Serial.println("ESP LIGHT MONITOR 1.1.4-DRAFT | GPIO32 HIGH=ALARM | BENCH ONLY | NOT A PROTECTIVE DEVICE");
+  Serial.println("ESP LIGHT MONITOR 1.1.5-DRAFT | GPIO32 LOW=ALARM | D13=LOCAL ACK | BENCH ONLY | NOT A PROTECTIVE DEVICE");
   Serial.println("USB 115200 + newline: STATUS or config JSON. No remote alarm reset.");
   if (xTaskCreatePinnedToCore(cloudTask, "esplight-cloud", 16384, nullptr, 1, nullptr, 0) != pdPASS)
     Serial.println("Cloud task failed to start. Local alarm remains active.");
@@ -1140,6 +1174,7 @@ void setup() {
 void loop() {
   const uint32_t now = millis();
   serviceSensor(now);
+  serviceResetButton(now);
   serviceSIM(now);
   readConsole();
   delay(5); // Cooperative local monitoring; no SIM startup delay blocks this loop.
