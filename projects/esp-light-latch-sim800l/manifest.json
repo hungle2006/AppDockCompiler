@@ -1,8 +1,8 @@
 {
   "id": "esp-light-latch-sim800l",
   "title": "ESP Light · Cảm biến chốt & SIM800L",
-  "description": "BẢN GIÁM SÁT ĐIỆN ÁP THẤP, KHÔNG DÙNG ĐÓNG LẠI ĐIỆN LƯỚI. GPIO32 HIGH = không có tín hiệu cảnh báo, LOW = cảnh báo; D13 xác nhận tại chỗ khi HIGH ổn định 2 giây, không xóa chốt NVS hay tự đóng tải. GPIO27/26 luôn ra lệnh LOW, khóa bật từ Firebase. LED2/4, SIM800L tùy chọn, lưu NVS và đồng bộ Firebase esplight-a94ff. Giữ cảnh báo cũ; chỉ giám sát, chưa xác minh tiếp điểm relay hoặc khả năng bảo vệ thực tế; không thay thế RCBO/RCCB. Cách ly điện lưới, tháo dây relay trước khi nạp/thử. Chưa kiểm thử trên mạch thật.",
-  "version": "1.1.5-draft",
+  "description": "BẢN GIÁM SÁT ĐIỆN ÁP THẤP, KHÔNG DÙNG ĐÓNG LẠI ĐIỆN LƯỚI. GPIO32 HIGH = không có tín hiệu cảnh báo, LOW = cảnh báo; D13 xác nhận tại chỗ khi HIGH ổn định 2 giây, không xóa chốt NVS hay tự đóng tải. GPIO27/26 luôn ra lệnh LOW, khóa bật từ Firebase. LED2/4, SIM800L tùy chọn, lưu NVS và đồng bộ Firebase esplight-a94ff. Giữ cảnh báo cũ; chỉ giám sát, chưa xác minh tiếp điểm relay hoặc khả năng bảo vệ thực tế; không thay thế RCBO/RCCB. Cách ly điện lưới, tháo dây relay trước khi nạp/thử. Chưa kiểm thử trên mạch thật. Bổ sung sensorLevel, localAcknowledged, firmwareVersion, telemetryAt; nếu Firestore từ chối metadata (403), thử đồng bộ theo định dạng cũ. Rules mở rộng chưa xác minh/phát hành; dữ liệu mới có thể chưa xuất hiện trên web. Chưa xác nhận biên dịch ESP32.",
+  "version": "1.1.6-draft",
   "published": true,
   "boards": [
     "esp32"
