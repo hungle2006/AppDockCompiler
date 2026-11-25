@@ -1,0 +1,12 @@
+{
+  "id": "esp-light-d13-led-bench",
+  "title": "ESP Light · Thử D13 và LED đỏ/xanh (mô phỏng)",
+  "description": "Chỉ thử logic bằng LED D2/D4 và Serial Monitor 115200 trên bàn thử 3,3V. Tháo toàn bộ dây điều khiển relay và cách ly điện lưới trước khi nạp. D32 HIGH bình thường; LOW chốt đỏ; trở về HIGH ổn định 2 giây và bấm D13 chuyển xanh. Không điều khiển relay, không kết nối hoặc ghi Firestore thật, trạng thái mô phỏng chỉ trong RAM. Không phải firmware thay thế hệ thống giám sát hoặc thiết bị bảo vệ. Chưa xác nhận biên dịch hoặc nạp thực tế.",
+  "version": "1.0.0",
+  "published": true,
+  "boards": [
+    "esp32"
+  ],
+  "libraries": [],
+  "fields": []
+}
