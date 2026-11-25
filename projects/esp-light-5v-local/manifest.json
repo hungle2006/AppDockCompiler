@@ -1,9 +1,9 @@
 {
   "id": "esp-light-5v-local",
   "title": "ESP Light 1.2.0 · Điều khiển tải 5V (COM–NO)",
-  "description": "Chỉ tải 5V DC cách ly trực tiếp, relay kích HIGH, COM–NO. Không dùng cho điện lưới hoặc điều khiển bộ đóng cắt điện lưới. D32 LOW ngắt lệnh D27/D26, D32 HIGH ổn định 2 giây và D13 phục hồi tại chỗ. LED đỏ/xanh, SIM800L, Firebase, Serial 115200. Cloud không được bật relay; báo relayCommandOn là lệnh GPIO, không xác nhận tiếp điểm. Khởi động LOW; giữ cảnh báo lịch sử trong NVS. Chưa kiểm thử phần cứng.",
+  "description": "Chỉ tải 5V DC cách ly trực tiếp, relay kích HIGH, COM–NO. Không dùng cho điện lưới hoặc điều khiển bộ đóng cắt điện lưới. D32 LOW ngắt lệnh D27/D26, D32 HIGH ổn định 2 giây và D13 phục hồi tại chỗ. LED đỏ/xanh, SIM800L, Firebase, Serial 115200. Cloud không được bật relay; báo relayCommandOn là lệnh GPIO, không xác nhận tiếp điểm. Khởi động LOW; giữ cảnh báo lịch sử trong NVS. Chưa kiểm thử phần cứng. Firestore Rules đã được cập nhật và web V18 đã triển khai. Chưa xác nhận biên dịch và đồng bộ từ ESP32 thật.",
   "version": "1.2.0-5v",
-  "published": false,
+  "published": true,
   "boards": [
     "esp32"
   ],
