@@ -31,6 +31,18 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['desiredOn','reportedOn','lastSeenAt','rssi','ipAddress']);
       }
+      // Metadata is only current when its server timestamp matches the heartbeat.
+      // Older firmware may keep reporting without changing the metadata.
+      function telemetryMetadata(d) {
+        return !d.diff(resource.data).affectedKeys().hasAny(
+          ['sensorLevel','localAcknowledged','firmwareVersion','telemetryAt'])
+          || (d.firmwareVersion == '1.1.6-draft'
+            && d.sensorLevel in ['HIGH','LOW']
+            && d.sensorLow == (d.sensorLevel == 'LOW')
+            && d.localAcknowledged is bool
+            && (!d.localAcknowledged || (d.alarmLatched && !d.sensorLow && !d.latchStorageFault))
+            && d.telemetryAt == request.time);
+      }
       function monitorUpdate() {
         let d = request.resource.data;
         return d.deviceUid == resource.data.deviceUid
@@ -43,9 +55,10 @@ service cloud.firestore {
           && (!d.sensorLow || d.alarmLatched)
           && (!d.latchStorageFault || d.alarmLatched)
           && d.lastSeenAt == request.time && d.rssi is int && d.ipAddress is string
+          && telemetryMetadata(d)
           && d.diff(resource.data).affectedKeys().hasOnly(
              ['monitorOnly','alarmLatched','sensorLow','latchStorageFault','outputVerified',
-              'desiredOn','lastSeenAt','rssi','ipAddress']);
+              'desiredOn','lastSeenAt','rssi','ipAddress','sensorLevel','localAcknowledged','firmwareVersion','telemetryAt']);
       }
       allow get: if owner() || device();
       allow list: if owner();
@@ -55,7 +68,7 @@ service cloud.firestore {
         && request.resource.data.deviceUid is string
         && request.resource.data.desiredOn == false
         && request.resource.data.reportedOn == false
-        && !request.resource.data.keys().hasAny(['monitorOnly','alarmLatched','sensorLow','latchStorageFault','outputVerified']);
+        && !request.resource.data.keys().hasAny(['monitorOnly','alarmLatched','sensorLow','latchStorageFault','outputVerified','sensorLevel','localAcknowledged','firmwareVersion','telemetryAt']);
       allow update: if (owner() && ownerUpdate()) || (device() && (legacyDeviceUpdate() || monitorUpdate()));
       allow delete: if owner();
     }
